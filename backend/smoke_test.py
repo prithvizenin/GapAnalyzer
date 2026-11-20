@@ -1,11 +1,13 @@
 """Backend smoke test — the project's verification for the API (no pytest suite).
 
 Start the API first (cd backend && python main.py), then:  python smoke_test.py
-66 checks: contract shape + copy-deck strings on the happy paths (TXT upload,
+70 checks: contract shape + copy-deck strings on the happy paths (TXT upload,
 pasted text, real PDF, DOCX), the full error contract (400/413/422), the
 weeks 8–9 semantic layer (paraphrase promoted to semantic, distractor stays
-missing), the weeks 10–11 categorized suggestions, the week 12 rewrite /
-compare / exports, and the gap-report download.
+missing), the weeks 10–11 categorized suggestions, the improvement plan /
+overall assessment, the rewrite fallback reasons, the week 12 rewrite /
+compare / exports, and the
+gap-report download.
 Override the target with  GAPANALYZER_API=http://host:port  if needed.
 """
 
@@ -15,6 +17,7 @@ import tempfile
 
 import httpx
 
+import layout
 import report
 import rewrite
 
@@ -87,9 +90,10 @@ def main() -> int:
             "contract keys",
             set(d)
             == {
-                "resume_text", "match_score", "matched_skills", "missing_skills",
-                "categories", "recommendations", "job_title", "company",
-                "diff_example",
+                "resume_text", "resume_layout", "match_score",
+                "matched_skills", "missing_skills",
+                "categories", "recommendations", "improvement_plan",
+                "overall_assessment", "job_title", "company", "diff_example",
             },
             str(set(d)),
         )
@@ -161,6 +165,27 @@ def main() -> int:
                 for rec in d["recommendations"]
             ),
             str([rec["skill"] for rec in d["recommendations"]]),
+        )
+        plan = d["improvement_plan"]
+        check(
+            "improvement_plan 1-4 steps",
+            isinstance(plan, list)
+            and 1 <= len(plan) <= 4
+            and all(isinstance(step, str) and len(step) >= 25 for step in plan),
+            str(plan),
+        )
+        check(
+            "improvement_plan names the top gap first",
+            bool(plan) and plan[0].startswith("Work CI/CD"),
+            str(plan[:1]),
+        )
+        assessment = d["overall_assessment"]
+        check(
+            "overall_assessment sentence",
+            isinstance(assessment, str)
+            and len(assessment) > 30
+            and assessment.endswith("."),
+            assessment,
         )
         check(
             "diff original",
@@ -316,8 +341,8 @@ Company: Semantic Labs
             "rewrite: contract keys",
             set(d)
             == {
-                "mode", "model", "revised_resume", "rewrites", "additions",
-                "stats",
+                "mode", "reason", "model", "revised_resume", "rewrites",
+                "additions", "stats",
             },
             str(set(d)),
         )
@@ -325,6 +350,12 @@ Company: Semantic Labs
             "rewrite: mode valid",
             d["mode"] in ("llm", "fallback") and isinstance(d["model"], str),
             f"{d['mode']} / {d['model']}",
+        )
+        check(
+            "rewrite: reason matches mode",
+            isinstance(d["reason"], str)
+            and (d["mode"] == "llm") == (d["reason"] == ""),
+            f"{d['mode']} / {d['reason']}",
         )
         check(
             "rewrite: revised resume present",
@@ -418,6 +449,43 @@ Company: Semantic Labs
     def export_body(file_format: str) -> dict:
         return {"resume_text": RESUME, "format": file_format}
 
+    # Week 13: the download is rebuilt in the uploaded resume's own format —
+    # /api/analyze measures the page and the client echoes the profile back.
+    LAYOUT = {
+        "source": "pdf",
+        "page": {"width": 612.0, "height": 792.0},
+        "margin": {"top": 48.3, "bottom": 48.0, "left": 60.0, "right": 60.4},
+        "size": {
+            "name": 20.0,
+            "contact": 9.5,
+            "heading": 11.0,
+            "body": 10.0,
+            "subtitle": 10.0,
+            "bullet": 10.0,
+        },
+        "roles": layout.classify(RESUME),
+    }
+    check(
+        "layout: roles cover every line",
+        len(LAYOUT["roles"]) == len(RESUME.split("\n"))
+        and LAYOUT["roles"][0] in ("name", "contact"),
+        LAYOUT["roles"][:4],
+    )
+    SAMPLE = (
+        "JANE DOE\n"
+        "city | jane@example.com | +00 00000 00000\n"
+        "CORE SKILLS\n"
+        "Technical Skills: React\n"
+        "\u2022 Built X"
+    )
+    check(
+        "layout: name/contact/heading/label/bullet roles",
+        layout.classify(SAMPLE)
+        == ["name", "contact", "heading", "label", "bullet"]
+        and layout.split_bullet("\u2022 Built X") == ("\u2022 ", "Built X"),
+        layout.classify(SAMPLE),
+    )
+
     r = httpx.post(
         f"{BASE}/api/rewrite/export", json=export_body("docx"), timeout=60
     )
@@ -435,6 +503,17 @@ Company: Semantic Labs
     )
     check("export pdf: 200", r.status_code == 200, f"{r.status_code} {r.text[:90]}")
     check("export pdf: pdf magic", r.content[:4] == b"%PDF", repr(r.content[:8]))
+
+    r = httpx.post(
+        f"{BASE}/api/rewrite/export",
+        json={**export_body("pdf"), "layout": LAYOUT},
+        timeout=60,
+    )
+    check(
+        "export pdf: honours the measured layout",
+        r.status_code == 200 and r.content[:4] == b"%PDF",
+        f"{r.status_code} {r.content[:8]}",
+    )
 
     r = httpx.post(
         f"{BASE}/api/rewrite/export",

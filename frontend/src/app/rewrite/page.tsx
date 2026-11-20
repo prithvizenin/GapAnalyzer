@@ -30,6 +30,19 @@ const CONNECTION_ERROR =
   "Couldn't reach the analyzer — is the backend running?";
 const FALLBACK_NOTE =
   "AI unavailable — the resume is unchanged; gap drafts are templates.";
+/** DESIGN_SYSTEM §6 — one plain line naming why the model did not run. */
+const FALLBACK_REASONS: Record<string, string> = {
+  no_key: "No API key is configured on the server.",
+  model_unavailable: "The configured model is no longer available.",
+  rate_limited: "The provider is rate-limiting this key — retry in a minute.",
+  overloaded: "The provider is briefly overloaded — retry in a minute.",
+  unreachable: "The provider could not be reached.",
+  provider_error: "The provider returned an error.",
+  non_json: "The provider returned an unexpected reply.",
+  unexpected_body: "The provider returned an unexpected reply.",
+  no_candidate_lines:
+    "No resume lines could be rewritten from the extracted text.",
+};
 
 type Phase = "loading" | "ready" | "error" | "empty";
 
@@ -53,6 +66,8 @@ export default function RewritePage() {
   const [downloading, setDownloading] = useState<ExportFormat | null>(null);
   const started = useRef(false);
   const root = useRef<HTMLElement>(null);
+  /** Measured page format of the uploaded resume (backend/layout.py). */
+  const resumeLayout = useRef<unknown>(null);
 
   useEffect(() => {
     if (started.current) return; // StrictMode double-mount guard
@@ -63,6 +78,8 @@ export default function RewritePage() {
     try {
       resume = window.sessionStorage.getItem("resume_text") ?? "";
       jd = window.sessionStorage.getItem("job_description") ?? "";
+      const storedLayout = window.sessionStorage.getItem("resume_layout");
+      resumeLayout.current = storedLayout ? JSON.parse(storedLayout) : null;
     } catch {
       /* storage blocked → treated as no session */
     }
@@ -151,6 +168,8 @@ export default function RewritePage() {
         body: JSON.stringify({
           resume_text: data.revised_resume,
           format,
+          // The uploaded page's format — the download is rebuilt in it.
+          layout: resumeLayout.current,
         }),
       });
       if (!res.ok) throw new Error(DOWNLOAD_FAILED);
@@ -262,9 +281,17 @@ export default function RewritePage() {
                 {data.stats.changed} of {data.stats.candidates} lines rewritten
               </p>
               {data.mode === "fallback" && (
-                <p className="mt-3 font-mono text-[11.5px] leading-[1.6] text-pen-red">
-                  {FALLBACK_NOTE}
-                </p>
+                <>
+                  <p className="mt-3 font-mono text-[11.5px] leading-[1.6] text-pen-red">
+                    {FALLBACK_NOTE}
+                  </p>
+                  {data.reason && (
+                    <p className="mt-2 font-mono text-[11px] leading-[1.6] text-graphite">
+                      Reason:{" "}
+                      {FALLBACK_REASONS[data.reason] ?? data.reason}
+                    </p>
+                  )}
+                </>
               )}
 
               <div className="mt-5 hidden grid-cols-2 gap-x-8 md:grid">

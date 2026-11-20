@@ -81,6 +81,31 @@ Empty state illustration for a web app, editorial paper aesthetic. A blank white
 
 ---
 
+## 09 — Favicon / app icon
+**File:** `comps/09-favicon.png` · **Size:** 1024×1024 (square; downscale to 16/32/48/180/512)
+
+**A — serif monogram (recommended).** One strong letterform survives a 16px tab; the red underline is the brand's own correction motif.
+
+```
+Square app icon, flat vector, editorial paper-and-dossier aesthetic. A warm off-white paper tile (hex F6F1E7) filling the entire canvas edge to edge, with very subtle paper grain and a hairline 1px border in muted beige (E3DCCB); corners barely rounded, 3px radius. Perfectly centered: a single large uppercase serif letter G in a high-contrast Didone display face like Instrument Serif, ink black (1C1A17), about 60 percent of the tile height, optically centered with generous padding on all sides. Directly beneath the letter, one confident hand-drawn red pen underline (C43D2E) with a slight upward flick at the right end, like a teacher's correction mark, not a decorative swoosh. Bold, simple silhouette that stays legible at 16 by 16 pixels: no text, no small details, no extra icons, no gradient, no glow, no drop shadow, no 3D, no photorealism, no glossy app-store chrome. Palette strictly cream, black and red.
+```
+
+**B — rubber-stamp roundel.** Ties to the stamp motif; a circular mark reads as an app icon at every size, but is rounder/softer than the square tile.
+
+```
+Square app icon, flat vector, editorial paper-and-dossier aesthetic. Warm off-white paper tile (F6F1E7) with faint grain filling the whole canvas; centered on it a single distressed circular rubber-stamp ring in correction red (C43D2E), slightly rough and uneven like a real ink stamp, 2px-to-4px stroke, occupying about 70 percent of the tile. Inside the ring, one bold uppercase serif letter G in ink black (1C1A17), large and solid. Nothing else: no small type, no stars, no percentage sign, no numbers, no shadows, no gradients, no 3D, no photorealism. High contrast, thick shapes, designed to be recognizable at 16 pixels. Palette cream, black and red only.
+```
+
+**C — highlighter monogram.** The matched-keyword swipe as an icon. Highest recall, slightly lower contrast at tiny sizes (yellow on cream).
+
+```
+Square app icon, flat vector, editorial paper aesthetic. Warm off-white paper tile (F6F1E7) with subtle grain filling the canvas; behind a bold uppercase serif letter G, a single horizontal highlighter swipe in mustard yellow (F6E27A) painted left to right like a real marker with a slightly ragged end, covering only the middle third of the tile height. The letter sits in ink black (1C1A17) directly on the yellow, large and centered, about 55 percent of the tile height. Minimal, flat, crisp edges, no gradient, no shadow, no 3D, no extra text, no decoration. Silhouette must remain readable as a favicon at 16 by 16 pixels. Palette cream, yellow, black.
+```
+
+**After generating:** pick one square PNG, then derive the sizes — `16/32/48` into a multi-size `favicon.ico`, `180×180` opaque `apple-icon.png`, `512×512` `icon.png`. In Next.js App Router drop them in `frontend/src/app/` (`icon.png`, `apple-icon.png`, and `favicon.ico` replacing the current default Next file) — Next emits the `<link>` tags itself, no `metadata` change needed. Keep the background opaque: a paper tile stays visible on dark browser chrome, whereas a transparent PNG of cream-and-red vanishes on a dark tab strip.
+
+---
+
 ## Folder convention
 
 ```
@@ -93,6 +118,7 @@ comps/            ← put generated images here (exact filenames above)
   06-mobile-results.png
   07-og-image.png        (optional)
   08-empty-state.png     (optional)
+  09-favicon.png         (square, downscale to favicon.ico)
 ```
 
 Once the comps are in, we extract final token values into `DESIGN_SYSTEM.md` and start building component-first.

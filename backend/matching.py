@@ -14,7 +14,9 @@ TF-IDF, no embeddings):
 
 Category scores = matched / required per category (100 when the posting asks
 for nothing in that category — no gap). `recommendations` give one copy-deck
-suggestion per gap category (weeks 10–11); `diff_example` inserts the top missing skill before
+suggestion per gap category (weeks 10–11); `improvement_plan` +
+`overall_assessment` turn the same numbers into the plain-language next steps
+`/results` shows (week 13). `diff_example` inserts the top missing skill before
 the earliest posting-required skill mention in the resume sentence that shares
 the most words with that skill's posting context. Both are the documented
 mid-sem heuristics (context.md §9) and become LLM features end-sem.
@@ -130,6 +132,173 @@ def _recommendations(missing_skills: list[dict]) -> list[dict]:
         worst.values(), key=lambda item: (-item["jd_mentions"], item["skill"])
     )
     return [_recommendation(skill) for skill in picked[:_RECOMMENDATION_LIMIT]]
+
+
+# ------------------------------------------------- improvement plan (week 13)
+
+_CATEGORY_SENTENCE = {
+    "technical": "technical",
+    "tools": "tools",
+    "soft": "soft skills",
+}
+_CATEGORY_ORDER = ("technical", "tools", "soft")
+_PLAN_LIMIT = 4
+
+
+def _join_names(names: list[str]) -> str:
+    """`["A", "B", "C"]` → `"A, B and C"` (sentence-safe, no Oxford comma)."""
+    if len(names) == 1:
+        return names[0]
+    if len(names) == 2:
+        return f"{names[0]} and {names[1]}"
+    return f"{', '.join(names[:-1])} and {names[-1]}"
+
+
+def _plural(count: int) -> str:
+    return "" if count == 1 else "s"
+
+
+def _weakest_category(
+    required: dict[str, int], categories: dict[str, int]
+) -> tuple[str, int] | None:
+    """The lowest-scoring category the posting actually asks something of.
+
+    Categories a posting never mentions score 100 by definition, so they are
+    excluded — otherwise a tool-heavy posting would report "soft skills" as
+    its weakest area for having nothing to check.
+    """
+    needed = [
+        category
+        for category in _CATEGORY_ORDER
+        if any(BY_NAME[name]["category"] == category for name in required)
+    ]
+    if not needed:
+        return None
+    weakest = min(
+        needed, key=lambda category: (categories[category], _CATEGORY_ORDER.index(category))
+    )
+    if categories[weakest] >= 100:
+        return None
+    return weakest, categories[weakest]
+
+
+def _improvement_plan(
+    missing_skills: list[dict],
+    matched_skills: list[dict],
+    categories: dict[str, int],
+    required: dict[str, int],
+    job_title: str,
+) -> list[str]:
+    """Up to four plain-language steps for `/results` (the hero sheet's block).
+
+    Ordered from content to presentation: add the posting's top gaps → raise
+    the weakest category → keep the strongest overlaps prominent → open the
+    summary with the posting's own title. Every sentence is derived from the
+    analysis; nothing is invented and no skill is asserted as present.
+    Templates live in DESIGN_SYSTEM §6.
+    """
+    plan: list[str] = []
+
+    if missing_skills:
+        top = missing_skills[:_PLAN_LIMIT - 1]
+        names = [item["skill"] for item in top]
+        mentions = sum(item["jd_mentions"] for item in top)
+        pronoun = "it" if len(names) == 1 else "them"
+        plan.append(
+            f"Work {_join_names(names)} into your resume — the posting asks "
+            f"for {pronoun} {mentions} time{_plural(mentions)}."
+        )
+
+    weakest = _weakest_category(required, categories)
+    if weakest:
+        category, value = weakest
+        first_gap = next(
+            (
+                item["skill"]
+                for item in missing_skills
+                if item["category"] == category
+            ),
+            None,
+        )
+        if first_gap:
+            plan.append(
+                f"Raise {_CATEGORY_SENTENCE[category]} coverage ({value}%) — "
+                f"describe real work with {first_gap} in a project or bullet."
+            )
+
+    if matched_skills:
+        strongest = sorted(
+            matched_skills,
+            key=lambda item: (-required.get(item["skill"], 0), item["skill"]),
+        )
+        names = [item["skill"] for item in strongest[:2]]
+        plan.append(
+            f"Keep {_join_names(names)} near the top of the resume — your "
+            "strongest overlaps with this posting."
+        )
+
+    if job_title:
+        plan.append(
+            f"Open your summary with the posting's own title, {job_title} — "
+            "it is the first line a screener reads."
+        )
+    else:
+        plan.append(
+            "Open your summary with the posting's own job title — it is the "
+            "first line a screener reads."
+        )
+
+    return plan[:_PLAN_LIMIT]
+
+
+def _overall_assessment(
+    score: int,
+    matched_skills: list[dict],
+    missing_skills: list[dict],
+    required: dict[str, int],
+    categories: dict[str, int],
+) -> str:
+    """One-sentence verdict banded on the score (DESIGN_SYSTEM §6)."""
+    total = len(required)
+    if total == 0:
+        return (
+            "The posting names none of the skills this analyzer tracks, so "
+            "the score reflects wording similarity alone."
+        )
+
+    found = len(matched_skills)
+    gaps = len(missing_skills)
+    if not missing_skills:
+        return (
+            f"Every skill the posting asks for already appears — {found} of "
+            f"{total} tracked requirements are covered, so the remaining gap "
+            "is wording, not content."
+        )
+
+    if score >= 70:
+        return (
+            f"Strong match — {found} of {total} tracked skills already appear. "
+            f"Close the {gaps} remaining gap{_plural(gaps)} to clear the "
+            "screen."
+        )
+
+    if score >= 45:
+        weakest = _weakest_category(required, categories)
+        if weakest:
+            category, value = weakest
+            return (
+                f"Partial match — {found} of {total} tracked skills appear, "
+                f"and {_CATEGORY_SENTENCE[category]} is the weakest area at "
+                f"{value}%."
+            )
+        return (
+            f"Partial match — {found} of {total} tracked skills already appear."
+        )
+
+    return (
+        f"Weak match — only {found} of {total} tracked skills appear. Start "
+        f"with {missing_skills[0]['skill']}."
+    )
 
 
 def _sentence_candidates(resume_text: str) -> list[str]:
@@ -358,15 +527,22 @@ def analyze(resume_text: str, jd_text: str) -> dict:
         resume_text, jd_text, required, missing_skills
     )
     job_title, company = _jd_metadata(jd_text)
+    categories = _category_scores(
+        required, set(keyword_matches) | set(semantic_matches)
+    )
 
     return {
         "match_score": match_score,
         "matched_skills": matched_skills,
         "missing_skills": missing_skills,
-        "categories": _category_scores(
-            required, set(keyword_matches) | set(semantic_matches)
-        ),
+        "categories": categories,
         "recommendations": recommendations,
+        "improvement_plan": _improvement_plan(
+            missing_skills, matched_skills, categories, required, job_title
+        ),
+        "overall_assessment": _overall_assessment(
+            match_score, matched_skills, missing_skills, required, categories
+        ),
         "job_title": job_title,
         "company": company,
         "diff_example": {"original": original, "suggested": suggested},

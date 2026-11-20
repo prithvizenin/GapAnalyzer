@@ -113,6 +113,14 @@ export default function ResultsPage() {
       }
       tlB.from("[data-stamp]", { scale: 1.25, autoAlpha: 0, duration: T.stamp, ease: EASE }, 0.85);
 
+      gsap.from(".js-plan", {
+        y: 16,
+        autoAlpha: 0,
+        duration: T.sheet,
+        ease: EASE,
+        scrollTrigger: { trigger: ".js-plan", start: "top 88%", once: true },
+      });
+
       gsap.from(".js-meta", {
         y: 14,
         autoAlpha: 0,
@@ -225,6 +233,39 @@ export default function ResultsPage() {
             tone={approved ? "green" : "red"}
             rotate={-8}                className="pointer-events-none absolute -bottom-4 right-6"
           />
+        </Sheet>
+      </section>
+
+      {/* The hero sheet's improvement block, built from real data
+          (DESIGN_SYSTEM §5 + §6): numbered steps first, then the verdict.
+          Composition of existing primitives — the landing ReportSheet
+          precedent, no new inventory item. */}
+      <section className="js-plan mt-10 md:mt-14">
+        <Sheet className="px-7 pt-7 pb-8 md:px-8">
+          <h2 className="sr-only">Recommendations</h2>
+          <div className="flex items-center gap-3">
+            <Paperclip className="h-7 w-7 shrink-0 -rotate-12 text-graphite" />
+            <p className={SUB_LABEL}>Top recommendations</p>
+          </div>
+          <ol className="mt-5 space-y-3 border-t border-rule pt-5">
+            {data.improvement_plan.map((step, i) => (
+              <li
+                key={step}
+                className="flex gap-3 text-[14px] leading-snug text-ink-soft md:text-[15px]"
+              >
+                <span className="shrink-0 font-display text-[17px] leading-none text-ink">
+                  {i + 1}.
+                </span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-7 border-t border-rule pt-5">
+            <p className={SUB_LABEL}>Overall assessment</p>
+            <p className="mt-2 text-[14px] leading-relaxed text-ink md:text-[15px]">
+              {data.overall_assessment}
+            </p>
+          </div>
         </Sheet>
       </section>
 

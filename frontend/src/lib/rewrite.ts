@@ -26,6 +26,11 @@ export interface RewriteResult {
   /** `llm` when the provider answered with usable JSON; `fallback` when no key,
    *  a network failure or off-spec output left the resume unchanged. */
   mode: "llm" | "fallback";
+  /** Why the model did not run when `mode` is `fallback` (`""` on success):
+   *  `no_key` · `model_unavailable` · `rate_limited` · `overloaded` ·
+   *  `unreachable` · `provider_error` · `non_json` · `unexpected_body` ·
+   *  `no_candidate_lines`. */
+  reason?: string;
   model: string;
   revised_resume: string;
   rewrites: RewrittenLine[];

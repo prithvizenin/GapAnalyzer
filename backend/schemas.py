@@ -92,6 +92,11 @@ class RewriteStats(BaseModel):
 
 class RewriteResponse(BaseModel):
     mode: Literal["llm", "fallback"]
+    # Why the model did not run, when `mode == "fallback"` (`""` on success):
+    # no_key · model_unavailable · rate_limited · overloaded · unreachable ·
+    # provider_error · non_json · unexpected_body · no_candidate_lines. The
+    # screen names the cause instead of blaming "the AI" for every case.
+    reason: str = ""
     model: str
     revised_resume: str
     rewrites: list[RewrittenLine]
@@ -124,10 +129,16 @@ class ExportRequest(BaseModel):
 
     `format` is validated in the route (not a Literal) so an unsupported value
     returns the project's 400 copy instead of FastAPI's 422 envelope.
+
+    `layout` is the profile measured from the uploaded file (`layout.profile`,
+    handed back by `/api/analyze` and echoed by the client). It carries the
+    page geometry, per-role type sizes and line roles, so the download is
+    rebuilt in the candidate's own format; absent or partial → `TEMPLATE`.
     """
 
     resume_text: str
     format: str
+    layout: dict | None = None
 
 
 class CompareRequest(BaseModel):
@@ -168,11 +179,20 @@ class AnalysisResponse(BaseModel):
     # Week 12: the extracted resume text travels back with the analysis so the
     # client can hand it to /api/rewrite without re-uploading the file.
     resume_text: str
+    # The uploaded page's measured format (layout.py): the client stores it
+    # beside `resume_text` and posts it back on export, so the download keeps
+    # the resume's own design. Pasted text → the reference template.
+    resume_layout: dict = Field(default_factory=dict)
     match_score: int
     matched_skills: list[MatchedSkill]
     missing_skills: list[MissingSkill]
     categories: Categories
     recommendations: list[Recommendation]
+    # Week 13: the hero sheet's improvement block, derived from the analysis.
+    # `improvement_plan` is at most four ordered steps (`/results`);
+    # `overall_assessment` is the one-sentence verdict banded on the score.
+    improvement_plan: list[str]
+    overall_assessment: str
     job_title: str
     company: str
     diff_example: DiffExample

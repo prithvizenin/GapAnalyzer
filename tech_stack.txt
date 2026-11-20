@@ -21,9 +21,11 @@ BACKEND  (backend/)
   Matching       scikit-learn — TF-IDF (1-2 grams) + cosine similarity
   Semantics      sentence-transformers, all-mpnet-base-v2 (~420 MB, CPU)
                  EMBEDDING_MODEL overrides the model; SEMANTIC_THRESHOLD defaults to 0.50
-  Rewriting      Google Gemini (gemini-2.5-flash) via its OpenAI-compatible endpoint,
+  Rewriting      Google Gemini (gemini-3.5-flash) via its OpenAI-compatible endpoint,
                  called with httpx; key in backend/.env (GEMINI_API_KEY)
-                 LLM_MODEL / LLM_BASE_URL / LLM_TIMEOUT override the defaults
+                 LLM_MODEL / LLM_BASE_URL / LLM_TIMEOUT override the defaults;
+                 retired/overloaded model names fall through a short candidate
+                 ladder (gemini-3.5-flash → gemini-3.8-flash → gemini-flash-latest)
   Documents      python-docx + reportlab — resume and gap-report export (DOCX / PDF)
   Verification   python smoke_test.py (needs the API running)
 

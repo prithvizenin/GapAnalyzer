@@ -152,6 +152,12 @@ export default function UploadPage() {
       // Handoff for /results, /report and /rewrite (context.md §9).
       sessionStorage.setItem("analysis", JSON.stringify(analysis));
       sessionStorage.setItem("resume_text", analysis.resume_text ?? "");
+      // The page format measured from the uploaded file — /rewrite sends it
+      // back on export so the download keeps the resume's own design.
+      sessionStorage.setItem(
+        "resume_layout",
+        JSON.stringify(analysis.resume_layout ?? null)
+      );
       sessionStorage.setItem("job_description", jd);
 
       // Let the checklist finish its run before the handoff (comp 03 pacing).

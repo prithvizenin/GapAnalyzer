@@ -68,12 +68,16 @@ async def analyze(
     if not job_description.strip():
         raise HTTPException(status_code=422, detail="Job description is required.")
 
-    resume_body = await extraction.extract_resume_text(resume, resume_text)
+    resume_body, resume_layout = await extraction.extract_resume(resume, resume_text)
 
     try:
         payload = matching.analyze(resume_body, job_description)
         # Week 12: the extracted text goes back so /rewrite can reuse it.
-        return AnalysisResponse(**payload, resume_text=resume_body)
+        # Week 13: so does the page's measured format, so the export download
+        # can be rebuilt in the resume's own design instead of plain text.
+        return AnalysisResponse(
+            **payload, resume_text=resume_body, resume_layout=resume_layout
+        )
     except Exception:
         logger.exception("analysis pipeline failed")
         raise HTTPException(status_code=500, detail="Analysis pipeline failed.")
@@ -148,7 +152,7 @@ def export_resume(request: ExportRequest) -> Response:
 
     try:
         data, media_type, extension = export_engine.build(
-            request.resume_text, request.format
+            request.resume_text, request.format, layout=request.layout
         )
     except Exception:
         logger.exception("resume export failed")

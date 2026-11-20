@@ -28,7 +28,9 @@ Configuration (env):
                     read when LLM_BASE_URL points somewhere other than Google,
                     so a leftover provider key is never sent to Gemini.
     LLM_BASE_URL    default https://generativelanguage.googleapis.com/v1beta/openai
-    LLM_MODEL       default gemini-2.5-flash
+    LLM_MODEL       default gemini-3.5-flash (gemini-2.5-flash now 404s for
+                    new API keys — retired names and demand spikes fall
+                    through a short candidate ladder, see _model_candidates)
     LLM_TIMEOUT     seconds, default 60
 
 Gemini is spoken to through its OpenAI-compatible layer, so the request below
@@ -44,6 +46,7 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 
 import httpx
@@ -90,15 +93,23 @@ def _load_env_file(path: Path) -> None:
 _load_env_file(_ENV_FILE)
 
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", _DEFAULT_BASE_URL).rstrip("/")
-LLM_MODEL = os.getenv("LLM_MODEL", "gemini-2.5-flash")
+LLM_MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash")
+# Google retires model names (gemini-2.5-flash answers 404 "no longer
+# available to new users") and demand-spikes others (503). A model-resolution
+# failure walks this list instead of degrading the whole feature; timeouts and
+# auth errors still end in fallback mode rather than stacking waits.
+_FALLBACK_MODELS = ("gemini-3.8-flash", "gemini-flash-latest")
 try:
-    LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "60"))
+    LLM_TIMEOUT = float(os.getenv("LLM_TIMEOUT", "120"))
 except ValueError:
-    LLM_TIMEOUT = 60.0
+    LLM_TIMEOUT = 120.0
 
 MAX_LINES = 24          # prompt bound — a resume's strongest 24 content lines
 MAX_LINE_CHARS = 400
-MIN_LINE_WORDS = 6
+# 4, not 6: real resume bullets are often short ("Maintained CI pipelines
+# with Jenkins"), and a tightened filter silently left resumes with no
+# rewrite candidates at all.
+MIN_LINE_WORDS = 4
 MAX_GROWTH = 1.8        # a rewrite may not exceed 180% of the original length
 MAX_ADDITIONS = 3       # one draft per gap category at most (see matching)
 NOTE_CHARS = 160
@@ -254,6 +265,20 @@ def _api_key() -> str:
     return ""
 
 
+def _model_candidates() -> list[str]:
+    """Model names to try, most preferred first (configured model leads).
+
+    Only the model-resolution statuses (404 retired / 503 demand spike) move
+    down this list; everything else is a real failure and degrades to
+    `fallback`. Other providers (a different `LLM_BASE_URL`) get exactly the
+    configured model — their names have no relation to Gemini's.
+    """
+    names = [LLM_MODEL]
+    if _GOOGLE_HOST in LLM_BASE_URL:
+        names.extend(_FALLBACK_MODELS)
+    return list(dict.fromkeys(name for name in names if name))
+
+
 def _json_object(content: str) -> dict | None:
     """Parse a JSON object out of a model reply (fences, stray prose tolerated)."""
     text = (content or "").strip()
@@ -267,68 +292,141 @@ def _json_object(content: str) -> dict | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _call_llm(system: str, user: dict) -> tuple[dict | None, str]:
-    """One chat-completions call. Returns `(parsed_json_or_None, model_label)`."""
+_TRANSIENT = frozenset({429, 500, 502, 503, 504})
+
+
+def _status_reason(status: int) -> str:
+    """Machine-readable fallback reason for the UI (DESIGN_SYSTEM §6 labels)."""
+    if status == 429:
+        return "rate_limited"
+    if status == 404:
+        return "model_unavailable"
+    if status == 503:
+        return "overloaded"
+    return "provider_error"
+
+
+def _call_llm(system: str, user: dict) -> tuple[dict | None, str, str]:
+    """One JSON chat-completions call, with bounded retries.
+
+    Returns `(parsed_json_or_None, model_label, reason)`. Transient provider
+    trouble (429/5xx) is retried once on the *same* model — a demand spike
+    lasts seconds, and jumping to a slower candidate turns it into a minute of
+    waiting. Only a retired (404) / overloaded (503) model name advances the
+    ladder; the reason is `""` on success so the UI can name what happened.
+    """
     key = _api_key()
     if not key:
         logger.info(
             "no Gemini API key — rewrite runs in fallback mode "
             "(set GEMINI_API_KEY in backend/.env)"
         )
-        return None, ""
+        return None, "", "no_key"
 
-    body: dict = {
-        "model": LLM_MODEL,
-        "temperature": 0.2,
-        "max_tokens": 1800,
-        "response_format": {"type": "json_object"},
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": json.dumps(user, ensure_ascii=False)},
-        ],
-    }
     headers = {
         "Authorization": f"Bearer {key}",
         # Ignored by Gemini; used for attribution when the base URL is OpenRouter.
         "HTTP-Referer": "http://localhost:3000",
         "X-Title": "GapAnalyzer",
     }
+    models = _model_candidates()
+    reason = "provider_error"
 
-    for attempt in (0, 1):
-        try:
-            response = httpx.post(
-                f"{LLM_BASE_URL}/chat/completions",
-                headers=headers,
-                json=body,
-                timeout=LLM_TIMEOUT,
-            )
-        except httpx.HTTPError:
-            logger.exception("rewrite provider unreachable — fallback mode")
-            return None, ""
+    for index, model in enumerate(models):
+        body: dict = {
+            "model": model,
+            "temperature": 0.2,
+            "max_tokens": 3000,
+            "response_format": {"type": "json_object"},
+            "messages": [
+                {"role": "system", "content": system},
+                {
+                    "role": "user",
+                    "content": json.dumps(user, ensure_ascii=False),
+                },
+            ],
+        }
 
-        if response.status_code == 200:
+        for attempt in (0, 1):
             try:
-                content = response.json()["choices"][0]["message"]["content"]
-            except (KeyError, IndexError, ValueError):
-                logger.warning("rewrite provider returned an unexpected body")
-                return None, ""
-            parsed = _json_object(content)
-            if parsed is None:
-                logger.warning("rewrite provider returned non-JSON — fallback mode")
-            return parsed, f"{LLM_BASE_URL.split('//')[-1].split('/')[0]}:{LLM_MODEL}"
+                response = httpx.post(
+                    f"{LLM_BASE_URL}/chat/completions",
+                    headers=headers,
+                    json=body,
+                    timeout=LLM_TIMEOUT,
+                )
+            except httpx.HTTPError:
+                logger.exception("rewrite provider unreachable — fallback mode")
+                return None, "", "unreachable"
 
-        # Some providers reject `response_format` — retry once without it.
-        if attempt == 0 and response.status_code in (400, 404, 415, 422):
-            body.pop("response_format", None)
-            continue
-        logger.warning(
-            "rewrite provider %s: %s",
-            response.status_code,
-            response.text[:200],
-        )
-        return None, ""
+            if response.status_code == 200:
+                try:
+                    choice = response.json()["choices"][0]
+                    content = choice["message"]["content"]
+                except (KeyError, IndexError, ValueError):
+                    logger.warning("rewrite provider returned an unexpected body")
+                    return None, "", "unexpected_body"
 
-    return None, ""
+                parsed = _json_object(content)
+                if (
+                    parsed is None
+                    and choice.get("finish_reason") == "length"
+                    and attempt == 0
+                ):
+                    # The reply was cut mid-JSON because it hit the token cap
+                    # (thinking tokens count against it too): retry once with
+                    # headroom instead of calling a working model unavailable.
+                    body["max_tokens"] = max(body["max_tokens"] * 2, 4096)
+                    logger.info(
+                        "rewrite output truncated — retrying with %s tokens",
+                        body["max_tokens"],
+                    )
+                    continue
+
+                if parsed is None:
+                    logger.warning(
+                        "rewrite provider returned non-JSON — fallback mode"
+                    )
+                host = LLM_BASE_URL.split("//")[-1].split("/")[0]
+                reason = "" if parsed is not None else "non_json"
+                return parsed, f"{host}:{model}", reason
+
+            # Some providers reject `response_format` — retry once without it.
+            # 404 is deliberately absent: on this provider it means "no such
+            # model", and repeating the call with fewer parameters cannot help.
+            if attempt == 0 and response.status_code in (400, 415, 422):
+                body.pop("response_format", None)
+                continue
+
+            # Transient provider trouble: retry this model once first.
+            if attempt == 0 and response.status_code in _TRANSIENT:
+                logger.warning(
+                    "rewrite provider %s on %s — retrying once",
+                    response.status_code,
+                    model,
+                )
+                time.sleep(1.5)
+                continue
+
+            reason = _status_reason(response.status_code)
+            logger.warning(
+                "rewrite provider %s on %s: %s",
+                response.status_code,
+                model,
+                response.text[:200],
+            )
+
+            if response.status_code in (404, 503) and index + 1 < len(models):
+                logger.warning(
+                    "rewrite model %s unavailable — trying %s",
+                    model,
+                    models[index + 1],
+                )
+                break
+
+            return None, "", reason
+
+    return None, "", reason
 
 
 # ------------------------------------------------------------------ assembly
@@ -357,11 +455,20 @@ def tailor(resume_text: str, jd_text: str) -> dict:
     gaps = analysis["missing_skills"][:MAX_ADDITIONS]
     blocked = {gap["skill"] for gap in gaps}
     lines = _candidate_lines(resume_text)
+    if not lines:
+        # The usual cause of "AI unavailable" on a real resume: nothing was
+        # rewritable, so no request was ever made.
+        logger.warning(
+            "no rewritable resume lines found (%d chars extracted) — "
+            "returning fallback with the resume unchanged",
+            len(resume_text),
+        )
 
     parsed: dict | None = None
     model_label = ""
+    reason = "" if lines else "no_candidate_lines"
     if lines:
-        parsed, model_label = _call_llm(
+        parsed, model_label, reason = _call_llm(
             SYSTEM_PROMPT,
             {
                 "job_description": jd_text[:2500],
@@ -443,6 +550,7 @@ def tailor(resume_text: str, jd_text: str) -> dict:
     changed = sum(1 for item in rewrites if item["changed"])
     return {
         "mode": "llm" if parsed is not None else "fallback",
+        "reason": "" if parsed is not None else (reason or "provider_error"),
         "model": model_label,
         "revised_resume": _apply(resume_text, replacements),
         "rewrites": rewrites,

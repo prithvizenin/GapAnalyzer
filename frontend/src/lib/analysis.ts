@@ -36,15 +36,36 @@ export interface Recommendation {
   message: string;
 }
 
+export interface ResumeLayout {
+  source?: string;
+  page?: { width: number; height: number };
+  margin?: { top: number; bottom: number; left: number; right: number };
+  font?: { family: string; bold: string; italic: string };
+  size?: Record<string, number>;
+  leading?: Record<string, number>;
+  bullet?: { char: string; indent: number };
+  /** One role per resume line — the exporter's stylesheet for the download. */
+  roles?: string[];
+}
+
 export interface AnalysisResult {
   /** Week 12: the extracted resume text, echoed by the API so /rewrite can
    *  reuse it without a second upload (context.md §9). */
   resume_text: string;
+  /** The uploaded page's measured format (backend/layout.py): /rewrite posts
+   *  it back on export so the download keeps the resume's own design. */
+  resume_layout?: ResumeLayout;
   match_score: number;
   matched_skills: MatchedSkill[];
   missing_skills: MissingSkill[];
   categories: Record<SkillCategory, number>;
   recommendations: Recommendation[];
+  /** Week 13: up to four plain-language steps for `/results` (the landing
+   *  hero sheet's block) — add the top gaps, raise the weakest category, keep
+   *  the strongest overlaps prominent, open the summary with the title. */
+  improvement_plan: string[];
+  /** Week 13: one-sentence verdict banded on the score. */
+  overall_assessment: string;
   job_title: string;
   company: string;
   diff_example: { original: string; suggested: string };
@@ -166,6 +187,14 @@ export const MOCK_ANALYSIS: AnalysisResult = {
         "Add a bullet mentioning Leadership — the posting emphasizes it 2 times.",
     },
   ],
+  improvement_plan: [
+    "Work CI/CD, TypeScript and AWS into your resume — the posting asks for them 8 times.",
+    "Raise soft skills coverage (45%) — describe real work with Leadership in a project or bullet.",
+    "Keep React and JavaScript near the top of the resume — your strongest overlaps with this posting.",
+    "Open your summary with the posting's own title, Senior Frontend Developer — it is the first line a screener reads.",
+  ],
+  overall_assessment:
+    "Partial match — 11 of the posting's 22 tracked skills appear, and soft skills is the weakest area at 45%.",
   job_title: "Senior Frontend Developer",
   company: "Acme Technologies",
   diff_example: {
