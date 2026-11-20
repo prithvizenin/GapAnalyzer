@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>GapAnalyzer — Tech Stack &amp; Architecture Reference</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm 18mm 14mm; }
+
+  :root {
+    --ink: #1C1A17;
+    --ink-soft: #4A463F;
+    --graphite: #6B675F;
+    --rule: #E3DCCB;
+    --paper: #F6F1E7;
+    --paper-raised: #FFFDF7;
+    --manila: #EADFC4;
+    --pen-red: #C43D2E;
+    --ink-blue: #2F5DA8;
+    --highlight: #F6E27A;
+    --stamp-green: #2E6B4F;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+    font-size: 10.2pt;
+    line-height: 1.55;
+    color: var(--ink);
+    background: #fff;
+    margin: 0;
+  }
+
+  h1, h2, h3, h4 { font-family: Georgia, "Times New Roman", serif; font-weight: 600; color: var(--ink); margin: 0; }
+  h2 { font-size: 16.5pt; margin: 0 0 8px; padding-bottom: 6px; border-bottom: 2px solid var(--ink); }
+  h3 { font-size: 12.5pt; margin: 18px 0 6px; }
+  h4 { font-size: 10.6pt; margin: 14px 0 4px; font-family: "Segoe UI", system-ui, sans-serif; font-weight: 700; }
+  p { margin: 6px 0; }
+  ul, ol { margin: 6px 0; padding-left: 20px; }
+  li { margin: 2.5px 0; }
+  a { color: var(--ink-blue); text-decoration: none; }
+
+  section { break-inside: auto; margin-bottom: 26px; }
+  .card, table, .qa, .diagram, pre { break-inside: avoid; }
+
+  /* ---------- cover ---------- */
+  .cover { border-top: 6px solid var(--ink); padding-top: 22px; margin-bottom: 26px; }
+  .cover .eyebrow {
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 8.6pt; letter-spacing: 0.16em; text-transform: uppercase;
+    color: var(--pen-red); margin-bottom: 10px;
+  }
+  .cover h1 { font-size: 30pt; line-height: 1.1; margin-bottom: 6px; }
+  .cover .sub { font-size: 13pt; color: var(--ink-soft); font-family: Georgia, serif; font-style: italic; }
+  .cover .meta {
+    display: flex; gap: 28px; flex-wrap: wrap; margin-top: 18px;
+    font-family: Consolas, monospace; font-size: 8.8pt; color: var(--ink-soft);
+    border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+    padding: 10px 0;
+  }
+  .cover .meta b { color: var(--ink); display: block; font-size: 9.6pt; }
+  .stamp {
+    display: inline-block; border: 2.5px solid var(--stamp-green); color: var(--stamp-green);
+    font-family: Consolas, monospace; font-weight: 700; letter-spacing: 0.14em;
+    font-size: 9pt; padding: 5px 12px; transform: rotate(-2deg); text-transform: uppercase;
+    border-radius: 3px;
+  }
+
+  /* ---------- TOC ---------- */
+  .toc { background: var(--paper); border: 1px solid var(--rule); border-radius: 3px; padding: 14px 18px; margin-bottom: 26px; break-inside: avoid; }
+  .toc .toc-title { font-family: Consolas, monospace; font-size: 8.6pt; letter-spacing: 0.14em; text-transform: uppercase; color: var(--graphite); margin-bottom: 8px; }
+  .toc ol { columns: 2; column-gap: 34px; margin: 0; padding-left: 18px; font-size: 9.6pt; }
+  .toc li { margin: 2px 0; }
+
+  /* ---------- tables ---------- */
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9.2pt; }
+  th {
+    text-align: left; background: var(--paper); font-family: Consolas, monospace;
+    font-size: 8.2pt; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600;
+    padding: 6px 8px; border-bottom: 1.5px solid var(--ink); color: var(--ink-soft);
+  }
+  td { padding: 5px 8px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr td:first-child { font-weight: 600; white-space: nowrap; }
+  code, .mono { font-family: Consolas, "Courier New", monospace; font-size: 9.2pt; background: var(--paper); padding: 0.5px 4px; border-radius: 2px; }
+  td code { background: none; padding: 0; }
+
+  pre {
+    background: #1C1A17; color: #F6F1E7; font-family: Consolas, "Courier New", monospace;
+    font-size: 8.6pt; line-height: 1.5; padding: 12px 14px; border-radius: 3px;
+    overflow-x: hidden; white-space: pre-wrap; margin: 8px 0;
+  }
+  pre .c { color: #9A948A; }
+  pre .k { color: #F6E27A; }
+  pre .r { color: #E88B7D; }
+
+  /* ---------- callouts ---------- */
+  .callout { border-left: 4px solid var(--ink); background: var(--paper); padding: 9px 13px; margin: 10px 0; border-radius: 0 3px 3px 0; break-inside: avoid; }
+  .callout.red { border-left-color: var(--pen-red); }
+  .callout.green { border-left-color: var(--stamp-green); }
+  .callout .tag { font-family: Consolas, monospace; font-size: 8pt; letter-spacing: 0.12em; text-transform: uppercase; color: var(--graphite); display: block; margin-bottom: 2px; }
+  .callout.red .tag { color: var(--pen-red); }
+  .callout.green .tag { color: var(--stamp-green); }
+
+  /* ---------- diagram ---------- */
+  .diagram { margin: 12px 0; }
+  .lane { border: 1.5px solid var(--ink); border-radius: 3px; overflow: hidden; }
+  .lane-title {
+    background: var(--ink); color: #F6F1E7; font-family: Consolas, monospace;
+    font-size: 8.4pt; letter-spacing: 0.12em; text-transform: uppercase; padding: 5px 10px;
+  }
+  .lane-body { padding: 10px 12px; background: #fff; }
+  .box {
+    border: 1px solid var(--rule); background: var(--paper-raised); border-radius: 3px;
+    padding: 7px 10px; margin: 6px 0; font-size: 9.2pt;
+  }
+  .box b { font-family: Consolas, monospace; font-size: 9pt; }
+  .box .hint { color: var(--graphite); font-size: 8.6pt; }
+  .flow { text-align: center; font-family: Consolas, monospace; color: var(--pen-red); font-size: 13pt; margin: 4px 0; line-height: 1; }
+  .flow small { display: block; font-size: 8pt; color: var(--ink-soft); letter-spacing: 0.06em; text-transform: uppercase; }
+
+  .cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  /* ---------- Q&A ---------- */
+  .qa { break-inside: avoid; margin-bottom: 12px; }
+  .qa .q {
+    font-weight: 700; font-size: 10.2pt; color: var(--ink);
+    padding-left: 22px; text-indent: -22px; margin-bottom: 3px;
+  }
+  .qa .q::before { content: "Q"; font-family: Consolas, monospace; color: var(--pen-red); font-weight: 700; margin-right: 8px; }
+  .qa .a { padding-left: 22px; text-indent: -22px; color: var(--ink-soft); }
+  .qa .a::before { content: "A"; font-family: Consolas, monospace; color: var(--stamp-green); font-weight: 700; margin-right: 8px; }
+  .qa .a b, .qa .a strong { color: var(--ink); }
+
+  .ok { color: var(--stamp-green); font-weight: 700; }
+  .no { color: var(--pen-red); font-weight: 700; }
+  .wait { color: var(--ink-blue); font-weight: 700; }
+
+  .footnote { font-size: 8.4pt; color: var(--graphite); border-top: 1px solid var(--rule); padding-top: 8px; margin-top: 26px; }
+</style>
+</head>
+<body>
+
+<!-- ============================ COVER ============================ -->
+<div class="cover">
+  <div class="eyebrow">Resume &rarr; Job Description Gap Analyzer &nbsp;·&nbsp; Mid-Semester Mini Project</div>
+  <h1>Tech Stack &amp; Architecture Reference</h1>
+  <div class="sub">Everything needed to explain what the system is built with, how each technology is used, and why each decision was made.</div>
+  <div class="meta">
+    <div><b>Product</b>GapAnalyzer</div>
+    <div><b>Frontend</b>Next.js 16.3.6 · React 19 · Tailwind v4 · GSAP 3.15</div>
+    <div><b>Backend</b>FastAPI 0.138 · Python 3.14 · scikit-learn 1.9</div>
+    <div><b>Status</b>End-to-end wired · 5/8 screens · 21/21 API checks</div>
+    <div><b>Prepared</b>26 September 2026</div>
+  </div>
+  <p style="margin-top:14px"><span class="stamp">Reference Build · Mid-Sem</span></p>
+</div>
+
+<!-- ============================ TOC ============================ -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+    <li><a href="#s1">Project at a Glance</a></li>
+    <li><a href="#s2">System Architecture</a></li>
+    <li><a href="#s3">Technology Inventory &amp; Versions</a></li>
+    <li><a href="#s4">Technology Adoption Status</a></li>
+    <li><a href="#s5">Backend Architecture</a></li>
+    <li><a href="#s6">The Matching Algorithm (Deep Dive)</a></li>
+    <li><a href="#s7">Frontend Architecture</a></li>
+    <li><a href="#s8">End-to-End Data Flow</a></li>
+    <li><a href="#s9">Cross-Cutting Concerns</a></li>
+    <li><a href="#s10">Verification &amp; Quality</a></li>
+    <li><a href="#s11">Running the Project Locally</a></li>
+    <li><a href="#s12">Design Decisions — Viva Q&amp;A</a></li>
+    <li><a href="#s13">Current Status &amp; Roadmap</a></li>
+    <li><a href="#s14">Glossary</a></li>
+  </ol>
+</div>
+
+<!-- ============================ 1 ============================ -->
+<section id="s1">
+<h2>1. Project at a Glance</h2>
+<p><b>GapAnalyzer</b> is a web tool that reads a resume and a job description side by side and tells the applicant exactly what is missing: a <b>match percentage</b>, <b>matched skills</b> (yellow highlighter), <b>missing skills</b> (red pen), category breakdowns, actionable suggestions, and an example rewritten bullet.</p>
+<p><b>One-liner:</b> “A tool that reads a resume and a job posting side by side, tells the user exactly what skills or keywords they're missing — using both simple keyword matching and smarter, meaning-based AI matching — and then generates an updated resume for them.”</p>
+<ul>
+  <li><b>Problem:</b> ATS (Applicant Tracking Systems) reject qualified candidates on wording alone (“led a team” vs “management experience”); job seekers never learn why they were rejected.</li>
+  <li><b>Users:</b> students and job seekers, career centers, anyone applying to several similar postings.</li>
+  <li><b>Current scope (mid-sem):</b> keyword-based gap detection — PDF/DOCX/TXT extraction → skill dictionary + regex → TF-IDF/overlap scoring → results UI, deployed end-to-end.</li>
+  <li><b>Future scope (end-sem):</b> embeddings-based semantic matching (sentence-transformers), LLM-generated resume rewrite, real-user testing.</li>
+</ul>
+<div class="callout green">
+  <span class="tag">Architecture in one sentence</span>
+  A <b>stateless two-process architecture</b>: a Next.js 16 frontend (rendering + upload UX) calls a FastAPI backend (document parsing + NLP scoring) over a single JSON API, passes results between pages with <code>sessionStorage</code>, and renders them through a fixed 22-component design system.
+</div>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section id="s2">
+<h2>2. System Architecture</h2>
+
+<h3>2.1 High-level component diagram</h3>
+<div class="diagram">
+  <div class="lane">
+    <div class="lane-title">Client — Browser (user machine)</div>
+    <div class="lane-body">
+      <div class="box"><b>Next.js 16 · React 19 · TypeScript</b> — App Router pages served from <span class="mono">localhost:3100</span> (dev: 3000)<br>
+      <span class="hint">/ landing → /upload (dropzone + JD textarea) → analyzing state → /results → /report · Tailwind v4 tokens · GSAP motion · design-system components</span></div>
+      <div class="flow">▼ <small>POST multipart/form-data — resume file + job_description · CORS-checked</small></div>
+      <div class="box"><b>FastAPI · Uvicorn — localhost:8000</b><br>
+      <span class="hint">GET /health · POST /api/analyze</span></div>
+      <div class="flow">▼ <small>Python 3.14 pipeline (5 stages)</small></div>
+      <div class="box" style="background:var(--paper)"><b>1 · request guard</b> (main.py) → <b>2 · extraction</b> (extraction.py: pdfplumber / python-docx / text) → <b>3 · skill detection</b> (skills.py: 117-entry dictionary + compiled regexes) → <b>4 · scoring</b> (matching.py: coverage + TF-IDF cosine → match score, categories, suggestions, diff) → <b>5 · contract</b> (schemas.py: Pydantic serializes the response)</div>
+      <div class="flow">▼ <small>application/json — AnalysisResult</small></div>
+      <div class="box"><b>Handoff</b> — <span class="mono">sessionStorage["analysis"]</span> → <span class="mono">router.push("/results")</span> → results + report screens render real data (fall back to a built-in mock when visited directly)<br>
+      <span class="hint">No database: the analysis lives only in the browser tab session</span></div>
+    </div>
+  </div>
+</div>
+
+<h3>2.2 Why two separate processes</h3>
+<ul>
+  <li><b>Separation of concerns:</b> the frontend owns presentation and UX state; the backend owns document parsing and NLP. Neither leaks into the other — the boundary is one documented JSON contract.</li>
+  <li><b>Different runtimes:</b> Python has the mature PDF/DOCX/scikit-learn libraries (pdfplumber, python-docx, scikit-learn); React/Next.js has the best UI ergonomics. Splitting lets each side use its ecosystem's best tool.</li>
+  <li><b>Independently deployable:</b> the frontend goes to Vercel, the backend to Render/Railway — configured by two env vars (<code>NEXT_PUBLIC_API_URL</code>, <code>ALLOWED_ORIGINS</code>).</li>
+  <li><b>Cost of the split:</b> CORS must be configured, and two servers must be kept in sync with the contract — mitigated by Pydantic models + TypeScript types + a 21-check smoke test (see §9, §10).</li>
+</ul>
+
+<h3>2.3 Request lifecycle (timings observed in testing)</h3>
+<table>
+  <tr><th style="width:8%">Step</th><th style="width:24%">Component</th><th>What happens</th></tr>
+  <tr><td>1</td><td><code>/upload</code> page</td><td>User drops a file (client-side pre-checks: <code>.pdf/.docx/.txt</code> only, 5 MB cap) and pastes the JD. CTA enables only when both exist.</td></tr>
+  <tr><td>2</td><td>analyzing state (screen 03)</td><td>Submit flips an in-page phase; a 2.8 s checklist animation (<code>MIN_ANALYZE_MS = 2800</code>) runs as pure <i>visual pacing</i> — it does not drive the pipeline.</td></tr>
+  <tr><td>3</td><td>fetch → FastAPI</td><td><code>POST /api/analyze</code> with <code>FormData(resume, job_description)</code> to <code>${NEXT_PUBLIC_API_URL}/api/analyze</code> (default <code>http://localhost:8000</code>).</td></tr>
+  <tr><td>4</td><td>backend pipeline</td><td>Guard → extraction → skill counts → scoring → Pydantic serialization. Errors surface as 400/413/422/500 with <code>{"detail": "..."}</code>.</td></tr>
+  <tr><td>5</td><td>handoff</td><td>Response validated (<code>match_score</code> must be a number) → written to <code>sessionStorage["analysis"]</code> → navigate to <code>/results</code> when both the API answered <i>and</i> the checklist finished (floor 2.8 s + 350 ms beat).</td></tr>
+  <tr><td>6</td><td>results / report</td><td>Both screens read <code>sessionStorage</code> on mount; if empty they render the built-in mock payload. GSAP sequences play: score stamp → category bars → sheets → chips → verdict stamp.</td></tr>
+  <tr><td>err</td><td>any failure</td><td>Copy-deck error string lands in the red alert slot under the dropzone; the form returns with file + JD preserved for retry.</td></tr>
+</table>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section id="s3">
+<h2>3. Technology Inventory &amp; Versions</h2>
+
+<h3>3.1 Frontend (<code>frontend/</code>)</h3>
+<table>
+  <tr><th style="width:22%">Technology</th><th style="width:14%">Version</th><th style="width:30%">Role in this project</th><th>How it is actually used</th></tr>
+  <tr><td>Next.js</td><td>16.3.6</td><td>App framework, routing, build</td><td>App Router with four routes (<code>/</code>, <code>/upload</code>, <code>/results</code>, <code>/report</code>), Turbopack dev/build, <code>next/font</code> for the four Google fonts, <code>NEXT_PUBLIC_API_URL</code> env plumbing. Note: v16 differs from older Next.js — <code>frontend/AGENTS.md</code> mandates reading <code>node_modules/next/dist/docs/</code> before writing code.</td></tr>
+  <tr><td>React</td><td>19.2.8</td><td>UI library</td><td>Interactive screens are client components (<code>"use client"</code>): form state, phases, fetch, sessionStorage. Server components remain for static layout (<code>layout.tsx</code>, landing structure).</td></tr>
+  <tr><td>TypeScript</td><td>5.x</td><td>Type safety</td><td>Contract types in <code>src/lib/analysis.ts</code> mirror the backend's Pydantic models; <code>npm run build</code> type-checks everything.</td></tr>
+  <tr><td>Tailwind CSS</td><td>4.x</td><td>Styling</td><td>CSS-first config: design tokens live in <code>src/app/globals.css</code> inside an <code>@theme</code> block (no <code>tailwind.config.js</code>) via <code>@tailwindcss/postcss</code>. Utilities only — no one-off CSS per screen.</td></tr>
+  <tr><td>GSAP + ScrollTrigger</td><td>3.15</td><td>All authored animation</td><td>Centralised in <code>src/lib/motion.ts</code>: the <code>useMotion(root, build, deps)</code> hook wraps every tween in <code>gsap.context</code> + <code>matchMedia("(prefers-reduced-motion: no-preference)")</code>. Entrances, staggers, highlighter swipes, pen draws, stamp settles, scroll reveals (<code>start: "top 88%"</code>, play once).</td></tr>
+  <tr><td>lucide-react</td><td>1.47</td><td>Icons</td><td>Stroke icons at 1.5px, <code>currentColor</code> (e.g. Download on the report CTA). No emoji/filled icons — design-system rule.</td></tr>
+  <tr><td>ESLint</td><td>9 + eslint-config-next</td><td>Linting</td><td>Runs inside <code>npm run build</code> (typecheck + lint + static generation = the project's frontend gate).</td></tr>
+</table>
+<p><b>Toolchain:</b> Node 26.3.0 · npm 12.0.2 · TypeScript types packages. <b>Fonts:</b> Instrument Serif (display), Inter (body), IBM Plex Mono (labels/data), Caveat (handwritten margin notes) — loaded via <code>next/font/google</code> in <code>layout.tsx</code>.</p>
+
+<h3>3.2 Backend (<code>backend/</code>)</h3>
+<table>
+  <tr><th style="width:22%">Technology</th><th style="width:14%">Version</th><th style="width:30%">Role in this project</th><th>How it is actually used</th></tr>
+  <tr><td>Python</td><td>3.14.4</td><td>Runtime</td><td>Global install (no venv); Windows console is cp1252 so <code>PYTHONIOENCODING=utf-8</code> is used when printing unicode.</td></tr>
+  <tr><td>FastAPI</td><td>0.138.0</td><td>Web framework</td><td>One endpoint (<code>POST /api/analyze</code>) + <code>GET /health</code>; automatic multipart parsing, HTTPException error mapping, OpenAPI docs, <code>response_model</code> enforcement. CORS middleware configured from the <code>ALLOWED_ORIGINS</code> env var.</td></tr>
+  <tr><td>Uvicorn</td><td>0.49.0</td><td>ASGI server</td><td>Serves the app on <code>0.0.0.0:8000</code> (<code>python main.py</code>).</td></tr>
+  <tr><td>python-multipart</td><td>—</td><td>Form parsing</td><td>Required by FastAPI to read <code>multipart/form-data</code> uploads (file + fields in one request).</td></tr>
+  <tr><td>pdfplumber</td><td>0.11.10</td><td>PDF text extraction</td><td><code>_from_pdf()</code>: page-by-page <code>extract_text()</code> joined with newlines; unreadable/scanned PDFs yield empty text → the 422 “no extractable text” error (OCR is out of scope).</td></tr>
+  <tr><td>python-docx</td><td>1.2.0</td><td>DOCX extraction</td><td>Reads all paragraphs <i>and</i> all table cells — resumes frequently keep content in tables.</td></tr>
+  <tr><td>scikit-learn</td><td>1.9.0</td><td>TF-IDF + cosine</td><td><code>TfidfVectorizer(stop_words="english", ngram_range=(1, 2))</code> fits resume+JD as a 2-document corpus; <code>cosine_similarity</code> gives the semantic-ish text overlap term of the score.</td></tr>
+  <tr><td>Pydantic</td><td>2.13.4</td><td>Contract lock</td><td><code>schemas.AnalysisResponse</code> is the <code>response_model</code> — the API literally cannot return a payload that deviates from the contract (extra fields stripped, types coerced/validated).</td></tr>
+  <tr><td>httpx</td><td>—</td><td>Test client</td><td>Used by <code>smoke_test.py</code> to call the running API (21 checks).</td></tr>
+</table>
+<p><b>Data:</b> <code>backend/data/skill_dictionary.json</code> — <b>117 entries</b> of <code>{name, category, aliases[], why?}</code>, categories ∈ <code>technical | tools | soft</code>. No database anywhere in the stack.</p>
+
+<h3>3.3 Supporting tooling</h3>
+<table>
+  <tr><th style="width:26%">Tool</th><th>Purpose</th></tr>
+  <tr><td><code>tmp_preview/shot.mjs</code></td><td>Headless-Chrome screenshot helper driven over CDP via Node's built-in WebSocket (zero dependencies). Modes: <code>fill</code> / <code>analyze</code> / <code>badfile</code> / <code>real</code> (full E2E). Every mode prints a machine-readable <code>facts:</code> JSON line — facts over eyeballing. Scrolls the page first so ScrollTrigger reveals fire.</td></tr>
+  <tr><td><code>tmp_preview/probe.mjs</code></td><td>Computed-style probe when a screenshot and reality disagree.</td></tr>
+  <tr><td>Chrome print-to-PDF</td><td>Generates fixture PDFs and this document (<code>--headless --print-to-pdf --no-pdf-header-footer</code>).</td></tr>
+  <tr><td><code>context.md</code> / <code>DESIGN_SYSTEM.md</code></td><td>Living project memory: progress, decisions, tokens, component inventory, copy deck (§6 = the only source of UI strings).</td></tr>
+</table>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section id="s4">
+<h2>4. Technology Adoption Status</h2>
+<p>How each technology from the semester plan is <i>actually doing</i> in the project — planned vs. built:</p>
+<table>
+  <tr><th style="width:22%">Planned technology (semester plan)</th><th style="width:38%">Where it lands in this project</th><th style="width:12%">Status</th><th>Notes</th></tr>
+  <tr><td>React / Next.js frontend</td><td>Next.js 16 App Router, 4 routes, 20/22 components shipped</td><td class="ok">BUILT</td><td>Screens 01–05 built and drift-checked at 1440px + 390px.</td></tr>
+  <tr><td>Python backend (Flask/FastAPI)</td><td>FastAPI, 6 flat modules, 1 endpoint</td><td class="ok">BUILT</td><td>FastAPI chosen over Flask (typed params, validation, OpenAPI for free).</td></tr>
+  <tr><td>pdfplumber, python-docx extraction</td><td><code>extraction.py</code> — PDF/DOCX/TXT, 5 MB cap</td><td class="ok">BUILT</td><td>Tested with a real PDF, a generated DOCX, and TXT; error contract 400/413/422.</td></tr>
+  <tr><td>Predefined skill dictionary + regex</td><td><code>skills.py</code> + 117-entry JSON, word-edge-guarded alias regexes</td><td class="ok">BUILT</td><td>Load-once, compiled patterns; case-insensitive, separators interchangeable.</td></tr>
+  <tr><td>scikit-learn TF-IDF scoring</td><td><code>matching.py</code> — 0.6 coverage + 0.4 cosine blend</td><td class="ok">BUILT</td><td>21/21 smoke checks; real E2E scored a 31% analysis.</td></tr>
+  <tr><td>Match % + missing-keyword UI</td><td>StampScore, CategoryBar, matched/missing sheets, report + diff</td><td class="ok">BUILT</td><td>Score-driven verdict stamp: ≥70% green APPROVED, &lt;70% red NEEDS WORK.</td></tr>
+  <tr><td>sentence-transformers (embeddings)</td><td>—</td><td class="wait">END-SEM</td><td>Planned Weeks 8–9: the technical centerpiece upgrade — replaces/augments keyword matching with meaning-based vectors.</td></tr>
+  <tr><td>LLM API (resume rewriting)</td><td>— (heuristic <code>diff_example</code> today)</td><td class="wait">END-SEM</td><td>Week 12: generate updated resume bullets; the contract field already exists so the UI won't change.</td></tr>
+  <tr><td>python-docx / reportlab (output file)</td><td>—</td><td class="wait">END-SEM</td><td>Download CTA exists on screen 05; actual file generation comes with the resume generator.</td></tr>
+  <tr><td>PostgreSQL / SQLite (optional)</td><td>—</td><td class="no">NOT USED</td><td>Deliberately stateless: <code>sessionStorage</code> carries results. Removes auth, migrations, and privacy concerns for a demo tool.</td></tr>
+  <tr><td>Vercel / Render / Railway deployment</td><td>Configured via <code>NEXT_PUBLIC_API_URL</code> + <code>ALLOWED_ORIGINS</code></td><td class="no">PENDING</td><td>The one open mid-sem DoD item besides sample data.</td></tr>
+  <tr><td>OCR for scanned PDFs</td><td>—</td><td class="no">NOT SUPPORTED</td><td>Documented limitation → clean 422 error message instead.</td></tr>
+</table>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section id="s5">
+<h2>5. Backend Architecture</h2>
+
+<h3>5.1 Module map (flat, one responsibility each)</h3>
+<table>
+  <tr><th style="width:20%">File</th><th>Responsibility</th></tr>
+  <tr><td><code>main.py</code></td><td>FastAPI app, CORS middleware (from <code>ALLOWED_ORIGINS</code>), <code>/health</code>, the <code>/api/analyze</code> handler: JD-required guard (422) → extraction → <code>matching.analyze()</code> → catch-all 500 with logged traceback.</td></tr>
+  <tr><td><code>extraction.py</code></td><td>File → clean text. Extension whitelist, 5 MB cap, PDF/DOCX/TXT strategies, error messages copied verbatim from the design system's copy deck.</td></tr>
+  <tr><td><code>skills.py</code></td><td>Dictionary loader + regex compiler + <code>count_mentions(text)</code>. Patterns are compiled once at import; exposes <code>BY_NAME</code> (name → {category, pattern, why, …}) and <code>CATEGORIES</code>.</td></tr>
+  <tr><td><code>matching.py</code></td><td>Scoring + response assembly: coverage, TF-IDF cosine, category scores, matched/missing lists, recommendations, <code>diff_example</code> heuristic, job-title/company extraction.</td></tr>
+  <tr><td><code>schemas.py</code></td><td>Pydantic models = the response contract (<code>AnalysisResponse</code> and its parts).</td></tr>
+  <tr><td><code>data/skill_dictionary.json</code></td><td>117 skills × {name, category, aliases, why}. Display names match the frontend copy deck exactly (e.g. <code>Unit-Testing</code>, <code>System-Design</code>).</td></tr>
+  <tr><td><code>smoke_test.py</code></td><td>The backend's test suite (see §10).</td></tr>
+</table>
+
+<h3>5.2 API contract</h3>
+<p><b>Request</b> — <code>multipart/form-data</code>:</p>
+<table>
+  <tr><th style="width:18%">Field</th><th style="width:14%">Type</th><th>Notes</th></tr>
+  <tr><td><code>resume</code></td><td>file</td><td>PDF / DOCX / TXT — sent on upload (file wins over text when both are present).</td></tr>
+  <tr><td><code>resume_text</code></td><td>string</td><td>Plain-text resume — for a future paste mode; the UI doesn't send it yet.</td></tr>
+  <tr><td><code>job_description</code></td><td>string</td><td>Required.</td></tr>
+</table>
+<p><b>Response</b> — <code>application/json</code> (shape locked by <code>AnalysisResponse</code>):</p>
+<pre>{
+  <span class="k">"match_score"</span>: 68,                         <span class="c">// 0–100 int</span>
+  <span class="k">"matched_skills"</span>: [ { <span class="k">"skill"</span>: "JavaScript", <span class="k">"category"</span>: "technical" } ],
+  <span class="k">"missing_skills"</span>: [ {
+      <span class="k">"skill"</span>: "CI/CD", <span class="k">"category"</span>: "tools",
+      <span class="k">"jd_mentions"</span>: 3,                       <span class="c">// how often the posting asks for it</span>
+      <span class="k">"why"</span>: "Commonly required in modern web development roles, ..." } ],
+  <span class="k">"categories"</span>: { <span class="k">"technical"</span>: 80, <span class="k">"tools"</span>: 60, <span class="k">"soft"</span>: 45 },
+  <span class="k">"recommendations"</span>: [ "Add a bullet mentioning CI/CD — the posting emphasizes it 3 times." ],
+  <span class="k">"job_title"</span>: "Senior Frontend Developer",   <span class="c">// first short line of the JD</span>
+  <span class="k">"company"</span>: "Acme Technologies",            <span class="c">// "Company:" / "About us:" line</span>
+  <span class="k">"diff_example"</span>: { <span class="k">"original"</span>: "Experience with Docker and ...",
+                     <span class="k">"suggested"</span>: "Experience with CI/CD, Docker and ..." }
+}</pre>
+
+<h3>5.3 Error contract (identical strings on both sides)</h3>
+<table>
+  <tr><th style="width:10%">Status</th><th style="width:34%">Trigger</th><th>Message (served verbatim; frontend mirrors them)</th></tr>
+  <tr><td>400</td><td>Wrong extension / neither file nor text</td><td>“Unsupported file type — PDF, DOCX, or TXT only.” · “Provide a resume file or resume text.”</td></tr>
+  <tr><td>413</td><td>Body &gt; 5 MB</td><td>“File too large — 5 MB max.”</td></tr>
+  <tr><td>422</td><td>Empty JD, or no extractable text (scanned/empty PDF)</td><td>“Job description is required.” · “No extractable text found in the resume — scanned/image PDFs are not supported yet.”</td></tr>
+  <tr><td>500</td><td>Any exception inside the scoring pipeline</td><td>“Analysis pipeline failed.” (traceback logged server-side)</td></tr>
+  <tr><td>net</td><td>Backend unreachable</td><td>Client-side: “Couldn't reach the analyzer — is the backend running?”</td></tr>
+</table>
+
+<div class="callout">
+  <span class="tag">Design principle</span>
+  The backend is a <b>pure function of its inputs</b> — no sessions, no files written, no history. Same resume + same JD ⇒ same score, which is what makes the 21 smoke checks deterministic.
+</div>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section id="s6">
+<h2>6. The Matching Algorithm (Deep Dive)</h2>
+
+<h3>6.1 Stage A — skill extraction (deterministic keyword matching)</h3>
+<ol>
+  <li>Load the 117-entry dictionary once at import; compile each skill into <b>one alternation regex</b> over its name + aliases.</li>
+  <li>Guard every alternative with <code>(?&lt;!\w) … (?!\w)</code> — <b>word-edge guards</b>, so “java” never matches inside “javascript”, “js” never matches “json”, “r” can't match “report”.</li>
+  <li>Separators are interchangeable: an alias like <code>unit-testing</code> is compiled as <code>unit[\s_\-]+testing</code>, so “unit testing”, “unit_testing” and “unit-testing” all hit.</li>
+  <li>Longest alias wins at each position (fragments sorted by length, descending) so the most specific form matches first.</li>
+  <li><code>count_mentions(text)</code> runs every pattern over the lowercased text → <code>{skill_name: occurrences}</code> for the JD (what's <i>required</i>) and the resume (what's <i>present</i>).</li>
+</ol>
+
+<h3>6.2 Stage B — scoring</h3>
+<pre>coverage  = Σ (mentions of required skills found in resume)  /  Σ (mentions of required skills)
+cosine    = cosine_similarity( TF-IDF(resume), TF-IDF(jd) )  <span class="c">// 1–2 grams, english stop words</span>
+
+<span class="k">match_score = round( 100 × ( 0.6 × coverage + 0.4 × cosine ) )</span>
+              <span class="c">// if the JD contains ZERO dictionary skills → match_score = round(100 × cosine)</span>
+              <span class="c">// result clamped to [0, 100]</span></pre>
+<ul>
+  <li><b>Coverage is mention-weighted:</b> a skill the posting repeats (CI/CD ×3) counts triple — mirroring how loudly the posting asks for it. Term-frequency weighting, the same idea TF-IDF applies to text.</li>
+  <li><b>TF-IDF</b> vectorizes both texts together as a 2-document corpus: term frequency inside each document × inverse document frequency across the pair; unigrams + bigrams; English stop words dropped; then cosine similarity ∈ [0, 1] of the two vectors. It catches topical/wording overlap the dictionary doesn't know about.</li>
+  <li><b>Why the blend:</b> coverage is precise but blind to anything outside the dictionary; cosine is broad but easily inflated by shared boilerplate. 60/40 keeps dictionary evidence in charge while letting general textual similarity move the needle.</li>
+  <li><b>Category scores</b> = matched ÷ required per category (<code>technical/tools/soft</code>); a category the JD never asks for scores 100 (no gap).</li>
+</ul>
+
+<h4>Worked example</h4>
+<div class="callout green">
+  <span class="tag">Arithmetic</span>
+  JD mentions: React ×3, Docker ×2, AWS ×1 (total 6). Resume contains React + Docker but not AWS →
+  coverage = (3+2)/6 = 0.833 · cosine = 0.15 →
+  score = 100 × (0.6 × 0.833 + 0.4 × 0.15) = 100 × (0.500 + 0.060) = <b>56</b>.
+</div>
+
+<h3>6.3 Stage C — the extras</h3>
+<ul>
+  <li><b>Missing/missing lists:</b> sorted alphabetically (matched) and by mention count descending (missing) so the loudest gaps render first.</li>
+  <li><b><code>why</code> strings:</b> taken verbatim from the dictionary's <code>why</code> field (copy-deck text), else a generated “Mentioned N times in the posting but not found in your resume.”</li>
+  <li><b>Recommendations:</b> top-3 missing skills → “Add a bullet mentioning {skill} — the posting emphasizes it N times.” (singular variant for N=1).</li>
+  <li><b><code>diff_example</code> heuristic:</b> take the top missing skill; collect the JD context words within ±40 chars of each mention; split the resume into sentences (≥15 chars, bullet markers stripped); pick the sentence with the most context-word overlap that has an insertion anchor (a JD-required skill mention); insert “{skill}, ” before the earliest anchor. Returns <code>{"", ""}</code> when no sensible anchor exists. Documented as the mid-sem heuristic — the LLM replaces it end-sem, contract field unchanged.</li>
+  <li><b><code>job_title</code> / <code>company</code>:</b> best-effort (first short line; <code>Company:</code>/<code>About us:</code> labelled line) — parsed but not yet rendered by the screens.</li>
+</ul>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section id="s7">
+<h2>7. Frontend Architecture</h2>
+
+<h3>7.1 Routes → design-system screens</h3>
+<table>
+  <tr><th style="width:12%">Route</th><th style="width:22%">Screen</th><th>Contents &amp; behavior</th></tr>
+  <tr><td><code>/</code></td><td>01 Landing</td><td>Nav + Hero (incl. inline ReportSheet) + StepsBand + FeatureRow. GSAP: hero entrance timeline; StepsBand/FeatureRow are scroll reveals.</td></tr>
+  <tr><td><code>/upload</code></td><td>02 Upload + 03 Analyzing</td><td>Dropzone sheet + ruled JD textarea + validating CTA → in-page analyzing checklist → real POST → handoff. No Nav (per comp). Client validation mirrors the API contract.</td></tr>
+  <tr><td><code>/results</code></td><td>04 Results overview</td><td>StampScore + 3 × CategoryBar + MATCHED/MISSING sheets + verdict StatusStamp + MetaBar. Focal GSAP sequence (stamp → bars → sheets → chips → verdict). Score ≥70 → green APPROVED, else red NEEDS WORK.</td></tr>
+  <tr><td><code>/report</code></td><td>05 Gap report</td><td>MISSING SKILLS annotations + SuggestionCards + ORIGINAL/SUGGESTED DiffRow + Download CTA. Same sessionStorage handoff.</td></tr>
+</table>
+
+<h3>7.2 Component architecture (component-first)</h3>
+<p><b>20/22</b> fixed inventory components shipped — every screen element maps to one of them; <b>no one-off styling</b> is the rule:</p>
+<div class="callout">
+  <span class="tag">Inventory</span>
+  <b>ui/</b> Button · Sheet · SkillChip · StampScore · StatusStamp · HandwrittenNote · StepIndicator · Dropzone · FileChip · Textarea · ProgressBar · CategoryBar · MetaBar · AnnotationNumber · AnnotationItem · SuggestionCard · DiffRow &nbsp;·&nbsp; <b>structure</b> Nav (+ NavWordmark) · Hero (+ ReportSheet) · FeatureRow (+ StepsBand). <br>
+  <b>Remaining (2):</b> EmptyState, Toast. Non-inventory helpers: AnalyzingPanel (screen 03), StepsBand.
+</div>
+<ul>
+  <li><b>Presentational components + page-authored motion:</b> components expose hooks (<code>data-chip</code>, <code>data-bar</code>, <code>data-stamp</code>, <code>data-scribble</code>, <code>data-step-underline</code>, <code>js-sheet</code>, <code>js-reveal</code>) and the pages build the GSAP timelines. This keeps animation choreography in one place per screen.</li>
+  <li><b>Design tokens:</b> Tailwind v4 <code>@theme</code> block in <code>globals.css</code> mirrors <code>DESIGN_SYSTEM.md</code> §3 — colors (<code>--paper #F6F1E7</code>, <code>--ink #1C1A17</code>, <code>--pen-red #C43D2E</code>, <code>--highlight #F6E27A</code>, <code>--stamp-green #2E6B4F</code>, …), the four fonts, 3px paper radius, hairline rules, paper-lift shadows, paper grain.</li>
+  <li><b>Semantic color contract:</b> red = gaps only, yellow = matched only, green = confirmed badges. Enforced by review, not code — a design-system rule.</li>
+  <li><b>Copy discipline:</b> all UI strings come verbatim from the <code>DESIGN_SYSTEM.md</code> §6 copy deck; new copy must be added there <i>before</i> use.</li>
+</ul>
+
+<h3>7.3 Motion system (GSAP)</h3>
+<ul>
+  <li><code>src/lib/motion.ts</code> is the single engine: registers ScrollTrigger, exports <code>gsap</code>, <code>ScrollTrigger</code>, <code>EASE = "expo.out"</code>, duration constants <code>T</code>, and the <code>useMotion</code> hook.</li>
+  <li><code>useMotion(root, build, deps)</code> = <code>gsap.matchMedia("(prefers-reduced-motion: no-preference)")</code> + <code>gsap.context(build, root)</code>, run in an isomorphic <i>layout</i> effect (applies <code>from</code> start-states pre-paint → no flash) with <code>ctx.revert()</code> on unmount/deps change.</li>
+  <li>Conventions: tweens assume elements sit at their natural visible CSS state (content is never hidden with CSS); scroll reveals fire once at <code>top 88%</code>; only <code>transform/opacity/clip-path/stroke-dashoffset/background-size</code> animate (no layout thrash — the progress bar's width is the sole exception because it <i>is</i> a measurement).</li>
+  <li>Reduced motion: the matchMedia gate means those users simply get the fully visible natural state — nothing is ever hidden behind an animation.</li>
+</ul>
+
+<h3>7.4 Client state &amp; error handling</h3>
+<ul>
+  <li>State lives in React <code>useState</code> (file, jd, error, phase, progress) plus the cross-page <code>sessionStorage["analysis"]</code>.</li>
+  <li>Validation is duplicated client-side for instant feedback (extension + 5 MB), and re-done server-side as the source of truth.</li>
+  <li>Error mapping: API <code>detail</code> string → red alert; <code>TypeError</code> (network) → connection line; missing/non-numeric <code>match_score</code> → pipeline line; phase returns to <code>form</code> preserving file + JD for retry.</li>
+</ul>
+</section>
+
+<!-- ============================ 8 ============================ -->
+<section id="s8">
+<h2>8. End-to-End Data Flow</h2>
+<ol>
+  <li><b>Input</b> — user drops <code>resume.pdf</code> and pastes the JD on <code>/upload</code>; client pre-checks type + size.</li>
+  <li><b>Submit</b> — <code>FormData{resume, job_description}</code> → <code>fetch POST ${NEXT_PUBLIC_API_URL}/api/analyze</code>; UI enters the analyzing checklist (visual pacing, 2.8 s floor).</li>
+  <li><b>Parse</b> — FastAPI parses multipart; <code>extraction.py</code> picks the strategy by extension and returns clean text (or 400/413/422).</li>
+  <li><b>Detect</b> — <code>skills.py</code> counts dictionary skills in JD (required) and resume (present) via compiled regexes.</li>
+  <li><b>Score</b> — <code>matching.py</code> blends weighted coverage (0.6) with TF-IDF cosine (0.4), derives category scores, missing/matched lists, recommendations, the diff example, and JD metadata.</li>
+  <li><b>Validate + serialize</b> — Pydantic <code>AnalysisResponse</code> enforces the contract, FastAPI returns JSON 200.</li>
+  <li><b>Handoff</b> — client validates the payload, writes <code>sessionStorage["analysis"]</code>, waits out the checklist beat, <code>router.push("/results")</code>.</li>
+  <li><b>Render</b> — <code>/results</code> reads sessionStorage (else the mock), GSAP sequence plays (stamp → bars → sheets → chips → verdict). <code>/report</code> deep-dives the same payload (missing.why, recommendations, diff).</li>
+  <li><b>Errors</b> — any failed step lands back on the form with a copy-deck message and the input preserved.</li>
+</ol>
+<div class="callout green">
+  <span class="tag">Verified E2E</span>
+  A real fixture run produced: <code>path=/results</code>, stamp “31 percent match”, categories 67/50/0, matched CSS/DOCKER/HTML/JAVASCRIPT/KUBERNETES/REACT, missing led by CI/CD — genuine pipeline output, not the 68% mock. A zero-overlap “pastry chef” resume produced 0% → “NO KEYWORDS MATCHED” + NEEDS WORK, exercising the empty-state path.
+</div>
+</section>
+
+<!-- ============================ 9 ============================ -->
+<section id="s9">
+<h2>9. Cross-Cutting Concerns</h2>
+
+<h3>9.1 CORS</h3>
+<ul>
+  <li>Browser same-origin policy blocks the browser→backend call unless FastAPI opts the frontend origin in. The <code>CORSMiddleware</code> allows <code>GET/POST</code> from origins in <code>ALLOWED_ORIGINS</code> (comma-separated env var).</li>
+  <li>Defaults: <code>localhost:3000, localhost:3100, 127.0.0.1:3000, 127.0.0.1:3100</code>. At deploy, the frontend's real origin must be appended — this plus <code>NEXT_PUBLIC_API_URL</code> is the entire deploy configuration for the pair.</li>
+  <li>Gotcha learned in practice: a stale <code>127.0.0.1:8000</code> process shadows a new <code>0.0.0.0:8000</code> one on loopback — kill <i>all</i> listeners before restarting the backend, or old CORS rules keep answering.</li>
+</ul>
+
+<h3>9.2 State &amp; persistence</h3>
+<ul>
+  <li><b>No database.</b> Analyses are computed on demand, stored only in <code>sessionStorage</code> (per-tab, cleared when the tab closes) and re-fetched implicitly by re-running an analysis.</li>
+  <li><b>Why:</b> nothing to secure, migrate, or seed; the demo can't leak resumes; the backend stays a pure function. The plan lists a DB as <i>optional</i> — a history feature would be the reason to add one later.</li>
+  <li><b>Mock fallback:</b> direct visits to <code>/results</code>/<code>/report</code> render <code>MOCK_ANALYSIS</code> (68%), so screens are never blank in review or demos.</li>
+</ul>
+
+<h3>9.3 Limits &amp; input safety</h3>
+<table>
+  <tr><th style="width:30%">Control</th><th>Implementation</th></tr>
+  <tr><td>File type whitelist</td><td><code>.pdf/.docx/.txt</code> checked on both client and server (400 otherwise). Executables never reach a parser.</td></tr>
+  <tr><td>Size cap</td><td>5 MB on both sides (413) — protects memory; constants kept in sync by comment.</td></tr>
+  <tr><td>Unparseable input</td><td>Empty/scanned PDFs → clean 422 instead of a stack trace.</td></tr>
+  <tr><td>Pipeline crash</td><td>Broad except in <code>main.py</code> → generic 500 + server-side logged traceback (no internals leaked to the client).</td></tr>
+  <tr><td>Regex safety</td><td>Patterns are compiled from a fixed dictionary (not user input) — no ReDoS surface; user text is only ever the haystack.</td></tr>
+</table>
+
+<h3>9.4 Frontend/backend contract sync</h3>
+<p>Three independent layers keep them aligned: <b>Pydantic</b> (<code>response_model</code> — the server cannot emit an invalid shape), <b>TypeScript</b> (<code>lib/analysis.ts</code> mirrors it; the client checks <code>match_score</code> is a number before trusting a payload), and <b>smoke tests</b> (21 field-level assertions). The contract itself is documented in <code>context.md</code> §9 — single source of truth.</p>
+</section>
+
+<!-- ============================ 10 ============================ -->
+<section id="s10">
+<h2>10. Verification &amp; Quality</h2>
+<table>
+  <tr><th style="width:26%">Layer</th><th>Mechanism</th></tr>
+  <tr><td>Backend tests</td><td><code>python smoke_test.py</code> with the API running — <b>21 checks</b>: happy paths for TXT upload, pasted text, a real PDF, and a generated DOCX (contract shape + copy-deck strings incl. the exact expected diff sentence), plus the full error contract (400 bad type / 413 oversized / 422 blank-text). No pytest suite — this is the test suite. Override target with <code>GAPANALYZER_API</code>.</td></tr>
+  <tr><td>Frontend gate</td><td><code>npm run build</code> must be green (typecheck + ESLint + static generation) before any UI task is called done. There is no frontend unit-test suite — a documented decision.</td></tr>
+  <tr><td>Visual regression</td><td>Comp-first: screenshot each screen with <code>tmp_preview/shot.mjs</code> (headless Chrome over CDP), compare against the approved comp at 1440px and 390px, fix drift in one batch. Every capture prints a <code>facts:</code> JSON line (path/h1/stamp/text) so assertions are textual, not eyeballed.</td></tr>
+  <tr><td>E2E</td><td><code>shot.mjs … real</code> mode: loads a fixture PDF + JD, submits through the live API, waits for the /results handoff, captures the rendered real analysis.</td></tr>
+  <tr><td>Live checks</td><td><code>GET /health</code>; CORS verified in-browser; pixel-count proof that animated elements (e.g. the GOOD MATCH stamp) actually rendered.</td></tr>
+</table>
+</section>
+
+<!-- ============================ 11 ============================ -->
+<section id="s11">
+<h2>11. Running the Project Locally</h2>
+<pre><span class="c"># Backend (terminal 1) — port 8000</span>
+cd backend
+python -m pip install -r requirements.txt   <span class="c"># fastapi uvicorn python-multipart pdfplumber python-docx scikit-learn</span>
+python main.py                              <span class="c"># API → http://localhost:8000  (GET /health)</span>
+<span class="c">#   dev origins if using other ports:</span>
+<span class="c">#   ALLOWED_ORIGINS="http://localhost:3000,3100,3101,3102" python main.py</span>
+python smoke_test.py                        <span class="c"># 21 contract checks (API must be running)</span>
+
+<span class="c"># Frontend (terminal 2)</span>
+cd frontend
+npm install                                 <span class="c"># only if node_modules/ missing</span>
+npm run dev                                 <span class="c"># dev → http://localhost:3000</span>
+npm run build                               <span class="c"># MUST be green before claiming UI work done</span>
+npm run start -- -p 3100                    <span class="c"># prod serve (3000 often occupied)</span></pre>
+<table>
+  <tr><th style="width:26%">Env var</th><th>Meaning</th></tr>
+  <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td>Frontend's API base (default <code>http://localhost:8000</code>) — set at deploy.</td></tr>
+  <tr><td><code>ALLOWED_ORIGINS</code></td><td>Backend CORS whitelist (comma-separated) — must include the deployed frontend origin.</td></tr>
+  <tr><td><code>GAPANALYZER_API</code></td><td>Smoke-test target override.</td></tr>
+</table>
+<div class="callout red">
+  <span class="tag">Operational gotchas (learned the hard way)</span>
+  Kill <b>all</b> stale listeners on 8000 before restarting the backend (loopback hits the old socket → old CORS wins). Restart <code>next start</code> after every rebuild (stale chunk manifest → CSS 404s). Check for stale ports on 3000/3100 before screenshotting — an old server will serve an old build and make facts look wrong.
+</div>
+</section>
+
+<!-- ============================ 12 ============================ -->
+<section id="s12">
+<h2>12. Design Decisions — Viva Q&amp;A</h2>
+
+<div class="qa"><div class="q">Why FastAPI instead of Flask (or a Node backend)?</div>
+<div class="a">FastAPI is <b>async-native and schema-first</b>: request parsing (multipart files + form fields), validation, serialization, and OpenAPI docs come from one declaration — the <code>response_model</code> literally locks our contract. Pydantic gives the same “shape safety” that TypeScript gives the frontend, in Python. Flask would need extra libraries for multipart validation and response schemas; a Node backend would have struggled with PDF/DOCX parsing (pdfplumber/python-docx are best-in-class) — that ecosystem choice drove the split.</div></div>
+
+<div class="qa"><div class="q">Why is the system split into a frontend server and a backend server?</div>
+<div class="a">Different runtimes for different strengths: React/Next.js for UI ergonomics and rendering, Python for NLP libraries. The boundary is one documented JSON API, so either side can be swapped or deployed independently (Vercel + Render). The costs — CORS and contract drift — are handled by <code>ALLOWED_ORIGINS</code>, Pydantic/TS mirrored types, and the smoke test.</div></div>
+
+<div class="qa"><div class="q">Why is there no database?</div>
+<div class="a">The tool is stateless by design: an analysis is a pure function of (resume, JD) and lives only in <code>sessionStorage</code> for the page flow. Nothing to secure, no resume data at rest (a privacy win), no migrations. The semester plan lists a DB as optional — we'd add one only for a “history of past analyses” feature.</div></div>
+
+<div class="qa"><div class="q">Why a skill dictionary + regex instead of spaCy, an LLM, or embeddings?</div>
+<div class="a">It's the mid-sem milestone's stated approach and it's <b>deterministic, fast (milliseconds), explainable, and free</b> — every match can be traced to a specific alias in a specific entry, and <code>why</code> strings come from the dictionary. For ~117 well-chosen skills with aliases it covers real job postings well. The end-sem upgrade adds sentence-transformers embeddings for <i>paraphrase</i> coverage (“led a team” ≈ “management experience”) — keyword matching can't do that by construction.</div></div>
+
+<div class="qa"><div class="q">What exactly is TF-IDF, and how is it configured here?</div>
+<div class="a"><b>Term Frequency – Inverse Document Frequency:</b> weight each word by how often it appears in a document (TF) discounted by how rare it is across the corpus (IDF) — common words vanish, distinctive words dominate. We fit <i>one vectorizer on both texts</i> (a 2-document corpus) with <code>stop_words="english"</code> and <code>ngram_range=(1,2)</code> (single words and word pairs, so “unit testing” survives), then take the <b>cosine similarity</b> — the angle between the two vectors — as the 0.4 term. It measures topical/wording overlap without knowing a single skill name.</div></div>
+
+<div class="qa"><div class="q">Why 0.6 coverage + 0.4 cosine? What if the JD has no known skills?</div>
+<div class="a">Coverage (dictionary, mention-weighted) is precise but incomplete; cosine is broad but noisy. Weighting coverage 60% keeps the explainable signal in charge. If the JD contains <b>zero</b> dictionary skills, coverage would be meaningless (division by zero / always 0), so the score falls back to <b>cosine alone</b>. Both paths are smoke-tested; scores are clamped to [0,100] and rounded to an int.</div></div>
+
+<div class="qa"><div class="q">Why the word-boundary regex guards — isn't substring matching simpler?</div>
+<div class="a">Substring matching produces embarrassing false positives: “java” inside “javascript”, “js” inside “json”, “r” inside “report”. Guards <code>(?&lt;!\w)…(?!\w)</code> make matches whole-word, while allowing separators to vary so “unit testing” hits “unit-testing”. Ambiguous bare tokens (“go”, “r”) are simply omitted from the dictionary. Longest-alias-first ordering prevents partial alternation matches.</div></div>
+
+<div class="qa"><div class="q">How do you keep frontend and backend from drifting apart?</div>
+<div class="a">Three layers: (1) <b>Pydantic</b> <code>response_model</code> — the server can't emit an invalid payload; (2) <b>TypeScript</b> <code>AnalysisResult</code> mirrors it and the client runtime-checks <code>match_score</code> before trusting a response; (3) <b>21 smoke checks</b> assert field-by-field. The contract is written down once in <code>context.md</code> §9 — both sides cite it.</div></div>
+
+<div class="qa"><div class="q">Why multipart/form-data for the request?</div>
+<div class="a">The payload contains a <b>binary file</b> (PDF/DOCX) plus text fields; JSON can't carry a file without base64 bloat. Multipart is the HTTP standard for that (boundary-delimited parts), and FastAPI parses it via python-multipart. A future “paste resume” mode would send plain <code>resume_text</code> instead.</div></div>
+
+<div class="qa"><div class="q">What is CORS and why does ALLOWED_ORIGINS exist?</div>
+<div class="a">Browsers enforce that a page from <code>localhost:3100</code> may not read responses from <code>localhost:8000</code> unless the API explicitly permits that origin (same-origin policy). FastAPI's CORS middleware answers the browser's preflight and adds the allow headers. <code>ALLOWED_ORIGINS</code> makes that list environment-driven so dev ports and the deployed domain are one env var away — and it's the classic source of “works locally, 400/403 in production” bugs, which is why it's called out in the deploy plan.</div></div>
+
+<div class="qa"><div class="q">Why Next.js App Router — and what's server vs client here?</div>
+<div class="a">App Router gives file-system routing, static generation for the landing pages, and <code>next/font</code> optimization. Everything interactive (upload form, analyzing phase, results/report data reads) is a <code>"use client"</code> component; layout and static structure stay server-rendered. Next 16 has breaking changes vs older versions, so the repo ships an agent note to read its bundled docs before writing code.</div></div>
+
+<div class="qa"><div class="q">Why pass results through sessionStorage instead of props or a URL?</div>
+<div class="a">Props can't cross a route change, and URLs would put a full analysis payload (and resume-derived content) in history/logs. <code>sessionStorage</code> is per-tab, survives navigation, clears when the tab closes — the right lifetime for a one-shot analysis. On missing data the screens fall back to a mock, so direct visits still render a valid screen. Cost: no cross-device/shareable link (that's what the OG image + future backend storage are for).</div></div>
+
+<div class="qa"><div class="q">Why Tailwind v4 with a CSS @theme block instead of a config file or CSS-in-JS?</div>
+<div class="a">Tailwind v4 is CSS-first: tokens are declared once as CSS variables in <code>@theme</code> (colors, fonts, shadows) and automatically become utilities — <code>bg-paper</code>, <code>text-ink</code>, <code>font-display</code>. That single block is the executable mirror of the design system, so “no new colors without updating DESIGN_SYSTEM.md” is enforceable in one place. Utilities keep markup component-first with zero one-off stylesheets; no CSS-in-JS runtime cost.</div></div>
+
+<div class="qa"><div class="q">Why GSAP rather than CSS animations or Framer Motion?</div>
+<div class="a">The screens need <b>authored sequences</b> (stamp settles → bars fill → sheets rise → chips swipe → verdict lands) with staggers, scroll triggers, and SVG path draws — choreography that CSS keyframes express poorly and React re-renders can break. GSAP timelines are imperative and reversible; <code>gsap.context</code> + a revert on unmount keeps re-renders clean. It also ships ScrollTrigger, and the whole layer is gated by <code>prefers-reduced-motion</code>. A user request chose GSAP explicitly; CSS remains only for hover/press micro-feedback.</div></div>
+
+<div class="qa"><div class="q">How is the project tested? Why no frontend unit tests?</div>
+<div class="a">Backend: 21 deterministic contract checks (all file formats + all error codes + exact copy strings) run against the live API. Frontend: <code>npm run build</code> (typecheck + lint + static generation) plus a <b>comp-first visual loop</b> — headless-Chrome screenshots compared against approved designs, with a machine-readable <code>facts:</code> line for assertions and an E2E mode that drives the real pipeline. Unit tests for pure presentational components were judged low-value against that; this is a documented trade-off.</div></div>
+
+<div class="qa"><div class="q">What are the limitations of the current approach?</div>
+<div class="a">(1) <b>Keywords only</b> — paraphrases with no shared vocabulary never match; (2) <b>dictionary coverage</b> — niche skills outside the 117 entries are invisible to coverage (cosine partially compensates); (3) <b>no OCR</b> — scanned PDFs return a clean 422; (4) <b>heuristic diff</b> — the suggested bullet is a pattern insertion, not a rewrite; (5) <b>no persistence/share</b>; (6) <b>not yet deployed</b>. Each maps to a planned end-sem item (embeddings, LLM rewrite, resume generator, sample-data testing, deploy).</div></div>
+
+<div class="qa"><div class="q">What changes end-sem, and does the architecture support it?</div>
+<div class="a">Weeks 8–9 add sentence-transformers: embeddings for resume and JD/skill phrases, cosine in vector space, and a tuned similarity threshold — slotting into <code>matching.py</code> behind the same contract, so the UI is untouched. Week 12 swaps the heuristic <code>diff_example</code> for an LLM call (field already exists). The layered design (extraction → detection → scoring → contract) means each upgrade replaces one module, not the system.</div></div>
+</section>
+
+<!-- ============================ 13 ============================ -->
+<section id="s13">
+<h2>13. Current Status &amp; Roadmap</h2>
+<table>
+  <tr><th style="width:52%">Mid-sem deliverable</th><th>Status</th></tr>
+  <tr><td>PDF/DOCX/TXT → text extraction pipeline</td><td class="ok">DONE — smoke-tested with real PDF + generated DOCX + TXT</td></tr>
+  <tr><td>Skill dictionary + regex extraction (117 entries)</td><td class="ok">DONE</td></tr>
+  <tr><td>TF-IDF / keyword-overlap scoring → match % + missing list</td><td class="ok">DONE — 21/21 checks</td></tr>
+  <tr><td>Clean UI: upload → analyze → results → gap report</td><td class="ok">DONE — screens 01–05, drift-checked desktop + mobile</td></tr>
+  <tr><td>End-to-end wiring (upload → API → results)</td><td class="ok">DONE — E2E-verified with real data (31% analysis)</td></tr>
+  <tr><td>Written mid-sem report</td><td class="ok">DONE — MiniProject_MidSem_Report.pdf</td></tr>
+  <tr><td>10–15 sample resumes + job postings</td><td class="no">TODO — next task</td></tr>
+  <tr><td>Live deployment</td><td class="no">TODO — frontend <code>NEXT_PUBLIC_API_URL</code> + backend <code>ALLOWED_ORIGINS</code></td></tr>
+  <tr><td>Screens 06 mobile results / 07 OG image / 08 empty state</td><td class="no">TODO — 5/8 screens built; 20/22 components</td></tr>
+</table>
+<p><b>End-sem (planned):</b> embeddings-based semantic matching (Weeks 8–9) → skill categorization + suggestions depth (10–11) → LLM updated-resume generator with download (12) → testing with classmates' resumes, edge cases (13) → keyword-only vs embeddings comparison + live demo (14).</p>
+</section>
+
+<!-- ============================ 14 ============================ -->
+<section id="s14">
+<h2>14. Glossary</h2>
+<table>
+  <tr><th style="width:24%">Term</th><th>Meaning (as used here)</th></tr>
+  <tr><td>ATS</td><td>Applicant Tracking System — software companies use to filter resumes before humans see them; the problem this tool addresses.</td></tr>
+  <tr><td>TF-IDF</td><td>Term Frequency–Inverse Document Frequency: vectorization weighting words by local frequency and global rarity (scikit-learn, here with 1–2 grams + English stop words).</td></tr>
+  <tr><td>Cosine similarity</td><td>Angle between two vectors as a 0–1 similarity; used both for TF-IDF text overlap now and for embeddings end-sem.</td></tr>
+  <tr><td>N-gram</td><td>A contiguous sequence of N words; bigrams (n=2) keep phrases like “unit testing” intact.</td></tr>
+  <tr><td>Coverage</td><td>Our term: fraction of the JD's dictionary mentions found in the resume, weighted by mention count (the 0.6 score term).</td></tr>
+  <tr><td>Embeddings</td><td>Dense vectors where similar meanings land near each other — the end-sem upgrade (sentence-transformers) for paraphrase matching.</td></tr>
+  <tr><td>Multipart form</td><td>HTTP body format combining binary file parts and text fields; parsed by FastAPI via python-multipart.</td></tr>
+  <tr><td>CORS</td><td>Cross-Origin Resource Sharing: opt-in headers by which an API lets a specific frontend origin read its responses.</td></tr>
+  <tr><td>App Router</td><td>Next.js's file-system routing model (<code>src/app/**/page.tsx</code>); server components by default, client components via <code>"use client"</code>.</td></tr>
+  <tr><td>Contract</td><td>The documented request/response shape of <code>POST /api/analyze</code> (context.md §9), enforced by Pydantic + mirrored in TypeScript.</td></tr>
+  <tr><td>sessionStorage</td><td>Browser key-value storage scoped to a tab's session — where the analysis payload crosses routes (cleared on tab close).</td></tr>
+  <tr><td>ScrollTrigger</td><td>GSAP plugin firing animations when elements enter the viewport; our scroll reveals use <code>start: "top 88%"</code>, play once.</td></tr>
+  <tr><td>Design tokens</td><td>CSS variables in Tailwind v4's <code>@theme</code> mirroring DESIGN_SYSTEM §3 — the single source of colors/typography/shadows.</td></tr>
+  <tr><td>Comp-first</td><td>Workflow: approved design images in <code>comps/</code> are the visual source of truth; builds are screenshot-compared for drift.</td></tr>
+  <tr><td>Pydantic</td><td>Python data-validation library; <code>AnalysisResponse</code> as FastAPI's <code>response_model</code> locks the API output shape.</td></tr>
+</table>
+
+<div class="footnote">
+  GapAnalyzer — Tech Stack &amp; Architecture Reference · compiled from <code>context.md</code>, <code>DESIGN_SYSTEM.md</code>, and the source in <code>frontend/</code> + <code>backend/</code> · versions verified against installed packages (26 Sep 2026). Companion documents: <code>MiniProject_MidSem_Report.pdf</code> (milestone report), <code>project_overview.pdf</code>, <code>semester_plan.pdf</code>.
+</div>
+</section>
+
+</body>
+</html>

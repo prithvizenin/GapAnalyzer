@@ -1,0 +1,13 @@
+Senior Frontend Developer
+
+We are looking for a Frontend Developer with strong React skills, experience in
+building responsive web applications, and a solid understanding of modern
+JavaScript, HTML, and CSS.
+- TypeScript and unit testing experience
+- CI/CD pipelines and Docker for deployment
+- AWS cloud services; CI/CD automation preferred
+- Leadership and mentoring of junior engineers
+- CI/CD best practices
+- Kubernetes is a plus
+
+Company: Acme Technologies

@@ -1,0 +1,221 @@
+@import "tailwindcss";
+
+/* Class-based dark mode — DESIGN_SYSTEM.md §3.1: the `dark` class on <html>
+   (set pre-paint by the layout boot script, then by ThemeToggle) re-points
+   the color tokens below. Components never branch on theme; only two
+   utilities use `dark:` (the toggle's icon swap). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Only the ThemeToggle's stacked icons use `dark:` — and only for motion
+   (rotation/scale/opacity) plus the one-time icon swap. Colors never branch on
+   theme: html.dark re-points the tokens below (§3.1). */
+
+@theme {
+  /* Color — Marked-Up Dossier (DESIGN_SYSTEM.md §3.1) */
+  --color-paper: #f6f1e7;
+  --color-paper-raised: #fffdf7;
+  --color-ink: #1c1a17;
+  --color-ink-soft: #4a463f;
+  --color-graphite: #8a857b;
+  --color-rule: #e3dccb;
+  --color-manila: #eadfc4;
+  --color-pen-red: #c43d2e;
+  --color-ink-blue: #2f5da8;
+  --color-highlight: #f6e27a;
+  /* Text that sits ON the highlighter — the same dark ink in BOTH themes
+     (§3.1): matched SkillChip, diff `mark`, FileChip label + ×. Never flips. */
+  --color-on-highlight: #1c1a17;
+  --color-stamp-green: #2e6b4f;
+
+  /* Type — DESIGN_SYSTEM.md §3.2 */
+  --font-display: var(--font-instrument-serif), Georgia, serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
+  --font-hand: var(--font-caveat), cursive;
+
+  /* Elevation — paper lift */
+  --shadow-paper: 0 1px 2px rgba(28, 26, 23, 0.06), 0 8px 24px rgba(28, 26, 23, 0.08);
+}
+
+/* ————————————————————————————————————————————————
+   Dark mode tokens (DESIGN_SYSTEM.md §3.1) — the `dark` class re-points the
+   same variable names, so every var()-based utility repaints with zero
+   `dark:` branches in components. Deliberately UNLAYERED: these must outrank
+   @theme's `:root` emission (cascade layers lose to unlayered rules).
+   `--color-highlight` / `--color-on-highlight` are absent by design — the
+   highlighter and its dark ink never change. `color-scheme` flips native
+   scrollbars/controls with the palette. */
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+  --color-paper: #191612;
+  --color-paper-raised: #221e18;
+  --color-ink: #f2ede3;
+  --color-ink-soft: #c9c2b4;
+  --color-graphite: #948d82;
+  --color-rule: #3a3429;
+  --color-manila: #2c2619;
+  --color-pen-red: #e86b5e;
+  --color-ink-blue: #82aeef;
+  --color-stamp-green: #63b58a;
+  --shadow-paper: 0 1px 2px rgba(0, 0, 0, 0.45), 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+  }
+
+  ::selection {
+    background: var(--color-highlight);
+    /* dark ink on the yellow in both themes (§3.1) — `ink` would go pale here */
+    color: var(--color-on-highlight);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-pen-red);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 0.01ms !important;
+      transition-delay: 0ms !important;
+    }
+  }
+}
+
+/* Ruled notebook paper — JD textarea (DESIGN_SYSTEM.md §4 #2, comp 02).
+   The red vertical margin line sits at 28px; text starts at 44px (pl-11).
+   padding-top must equal the y-offset of the rules layer (16px) so text
+   baselines land on the rules. */
+.ruled-paper {
+  --ruled-lh: 32px;
+  padding-top: 16px;
+  background-image:
+    linear-gradient(
+      to right,
+      transparent 0 28px,
+      var(--color-pen-red) 28px 29px,
+      transparent 29px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 calc(var(--ruled-lh) - 1px),
+      color-mix(in srgb, var(--color-rule) 50%, var(--color-graphite))
+        calc(var(--ruled-lh) - 1px) var(--ruled-lh)
+    );
+  background-position: 0 0, 0 16px;
+  background-repeat: no-repeat;
+}
+
+/* Highlighter paint layer — matched chips + the diff's added phrase (§3.5).
+   Styling, NOT animation: the yellow sits at full width by default; GSAP
+   tweens `backgroundSize` 0%→100% so the marker sweeps L→R over the text. */
+.hl-sweep {
+  background-image: linear-gradient(
+    var(--color-highlight),
+    var(--color-highlight)
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+/* ————————————————————————————————————————————————
+   Motion — GSAP + ScrollTrigger own every authored animation (DESIGN_SYSTEM
+   §3.5 engine note: entrances, staggers, draws, swipes, stamps, sequences,
+   scroll reveals — all gated by prefers-reduced-motion via gsap.matchMedia).
+   CSS here is limited to hover/press/focus feedback transitions (Tailwind
+   utilities on components) and the reduced-motion guard in @layer base. */
+
+/* ————————————————————————————————————————————————
+   Theme swap — radial reveal (§3.5, toggle #23). ThemeToggle writes
+   --theme-origin-x/y (button centre) and --theme-origin-r (farthest viewport
+   corner), then flips `dark` inside document.startViewTransition. The new
+   snapshot opens as a circle from the switch while the old one holds still, so
+   the whole page repaint is ONE composited clip-path animation instead of
+   hundreds of per-element color tweens. No grey wobble, and long pages stay
+   cheap. Easing is the project's expo.out curve (§3.5 arrivals).
+   Media-gated: reduced motion never gets a view transition (ThemeToggle skips
+   the API entirely), so the swap is instant. */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 420ms;
+    animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+    mix-blend-mode: normal;
+  }
+
+  ::view-transition-old(root) {
+    /* the outgoing palette is the backdrop — it must not fade */
+    animation: none;
+    z-index: 1;
+  }
+
+  ::view-transition-new(root) {
+    z-index: 2;
+    animation-name: theme-reveal;
+    animation-fill-mode: both;
+  }
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(
+      0px at var(--theme-origin-x, 50%) var(--theme-origin-y, 50%)
+    );
+  }
+  to {
+    clip-path: circle(
+      var(--theme-origin-r, 150vmax) at var(--theme-origin-x, 50%)
+        var(--theme-origin-y, 50%)
+    );
+  }
+}
+
+/* Fallback for browsers without View Transitions (§3.5): the per-element
+   crossfade, shortened to 220ms so it still reads as one motion. ThemeToggle
+   adds `html.theme-anim`, forces a style flush, flips the palette, then drops
+   the class ~280ms later. The !important outranks each element's own
+   transition utility for exactly that window, so hover/press timing at rest is
+   untouched. No opacity/transform/background-size in the list — those belong
+   to GSAP and must not double-animate. */
+@media (prefers-reduced-motion: no-preference) {
+  html.theme-anim,
+  html.theme-anim *,
+  html.theme-anim *::before,
+  html.theme-anim *::after {
+    transition: background-color 220ms ease-out, border-color 220ms ease-out,
+      color 220ms ease-out, fill 220ms ease-out, stroke 220ms ease-out,
+      box-shadow 220ms ease-out !important;
+  }
+}
+
+
+/* Paper grain overlay — ≤4% opacity, paper surfaces only (§3.3) */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}

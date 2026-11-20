@@ -1,0 +1,37 @@
+Priya Raman
+Frontend Engineer · Bengaluru, India
+priya.raman@example.com · +91 98765 43210 · github.com/priyaraman
+
+SUMMARY
+Frontend engineer with four years spent on data-heavy product interfaces. I care about
+accessibility, fast feedback loops, and code that other people can read.
+
+EXPERIENCE
+Senior Frontend Engineer — Nimbus Analytics (2023–present)
+- Rebuilt the reporting dashboard in React and TypeScript, cutting first-load time by 41%.
+- Automated builds and releases with GitHub Actions, so the team ships several times a day.
+- Deployed the dashboard with Docker and GitHub Actions to production, keeping releases small and reversible.
+- Led a cross-functional team of six engineers and coached two interns.
+- Mentored four junior developers across two teams.
+- Wrote unit tests with Jest and React Testing Library, holding coverage above 80%.
+- Managed server state with Redux and styled components with Tailwind CSS.
+
+Frontend Developer — Kettle & Co. (2021–2023)
+- Built a responsive storefront with HTML, CSS and React, serving 40k monthly visitors.
+- Integrated REST APIs for checkout, search, and inventory.
+- Cut bundle size 28% by trimming the Webpack config and lazy-loading routes.
+- Worked in a two-week Agile cadence with weekly demos for stakeholders.
+
+EDUCATION
+B.E. Computer Science — R.V. College of Engineering, 2021
+
+SKILLS
+React
+TypeScript
+JavaScript
+HTML, CSS
+Redux
+Tailwind CSS
+Jest
+Webpack
+Git

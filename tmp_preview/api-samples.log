@@ -1,0 +1,18 @@
+INFO:     Started server process [10920]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     127.0.0.1:53575 - "GET /health HTTP/1.1" 200 OK
+INFO:sentence_transformers.base.model:No device provided, using cpu
+INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-mpnet-base-v2 "HTTP/1.1 200 OK"
+INFO:sentence_transformers.base.model:Loading SentenceTransformer model from sentence-transformers/all-mpnet-base-v2.
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights:  12%|#1        | 23/199 [00:00<00:00, 223.00it/s]Loading weights:  23%|##3       | 46/199 [00:00<00:00, 159.24it/s]Loading weights:  34%|###3      | 67/199 [00:00<00:00, 176.32it/s]Loading weights:  43%|####3     | 86/199 [00:00<00:00, 145.17it/s]Loading weights:  59%|#####8    | 117/199 [00:00<00:00, 184.95it/s]Loading weights:  69%|######8   | 137/199 [00:00<00:00, 178.77it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 237.12it/s]
+INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-mpnet-base-v2/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-mpnet-base-v2/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+INFO:httpx:HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-mpnet-base-v2/resolve/e8c3b32edf5434bc2275fc9bab85f82640a19130/2_Normalize/config.json "HTTP/1.1 404 Not Found"
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+INFO:gapanalyzer:semantic matching ready: sentence-transformers/all-mpnet-base-v2 (threshold 0.50)
+INFO:     127.0.0.1:53577 - "POST /api/analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53580 - "POST /api/analyze HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53584 - "POST /api/analyze HTTP/1.1" 200 OK

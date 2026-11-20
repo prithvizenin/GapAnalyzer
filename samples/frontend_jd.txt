@@ -1,0 +1,23 @@
+Senior Frontend Engineer
+
+Company: Acme Cloud
+
+Acme Cloud builds observability tooling for platform teams. We ship to 900+ customers
+and deploy to production every day.
+
+What you'll do
+- Own the React and TypeScript frontend for our dashboards, which run on Next.js.
+- Design and build GraphQL data flows alongside our platform team.
+- Write unit testing suites for every feature you ship.
+- Improve our CI/CD pipelines and containerized deploys with Docker and Kubernetes.
+- We run Kubernetes in production and expect you to help operate it.
+- Work with AWS services and own system design for the frontend architecture.
+- Lead and mentor junior engineers; we expect leadership on cross-team projects.
+
+What we're looking for
+- 4+ years of professional frontend experience with React.
+- Strong HTML, CSS and modern JavaScript.
+- Experience with unit testing and CI/CD automation.
+- Familiarity with Redux or similar state management, and Webpack or Vite.
+- Kubernetes and AWS experience is a strong plus.
+- Comfortable working in an Agile team.

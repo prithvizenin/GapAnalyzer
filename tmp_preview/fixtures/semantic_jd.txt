@@ -1,0 +1,6 @@
+Backend Developer
+
+We need strong leadership and mentoring of junior engineers, plus ownership of
+CI/CD pipelines. Python services. Kubernetes is a plus.
+
+Company: Semantic Labs

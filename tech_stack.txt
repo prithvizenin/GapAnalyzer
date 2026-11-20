@@ -1,0 +1,43 @@
+GapAnalyzer — tech stack (plain-text inventory)
+Regenerate when the stack changes. Source of truth: frontend/package.json + backend/requirements.txt.
+
+FRONTEND  (frontend/)
+  Framework      Next.js 16.3.6 — App Router, Turbopack
+  UI runtime     React 19.2.8 + react-dom 19.2.8
+  Language       TypeScript 5
+  Styling        Tailwind CSS v4 (@tailwindcss/postcss); tokens in src/app/globals.css
+  Animation      GSAP 3.15 + ScrollTrigger (src/lib/motion.ts, useMotion hook)
+  Icons          lucide-react 1.47
+  Fonts          next/font/google — Instrument Serif, Inter, IBM Plex Mono, Caveat
+  Lint           ESLint 9 + eslint-config-next 16.3.6
+  Dev            npm run dev
+  Build / serve  npm run build ; npm run start -- -p 3100
+
+BACKEND  (backend/)
+  Runtime        Python 3.14 (global site-packages, no venv)
+  API            FastAPI + uvicorn, port 8000, CORS via ALLOWED_ORIGINS
+  Multipart      python-multipart
+  Extraction     pdfplumber (PDF), python-docx (DOCX), UTF-8 / latin-1 (TXT)
+  Matching       scikit-learn — TF-IDF (1-2 grams) + cosine similarity
+  Semantics      sentence-transformers, all-mpnet-base-v2 (~420 MB, CPU)
+                 EMBEDDING_MODEL overrides the model; SEMANTIC_THRESHOLD defaults to 0.50
+  Rewriting      Google Gemini (gemini-2.5-flash) via its OpenAI-compatible endpoint,
+                 called with httpx; key in backend/.env (GEMINI_API_KEY)
+                 LLM_MODEL / LLM_BASE_URL / LLM_TIMEOUT override the defaults
+  Documents      python-docx + reportlab — resume and gap-report export (DOCX / PDF)
+  Verification   python smoke_test.py (needs the API running)
+
+API ROUTES
+  GET  /health
+  POST /api/analyze         multipart: resume file | resume_text, plus job_description
+  POST /api/rewrite         JSON: resume_text + job_description
+  POST /api/rewrite/export  JSON: resume_text + format (docx | pdf)
+  POST /api/report/export   JSON: analysis fields + format (docx | pdf)
+  POST /api/compare         JSON: resume_text + job_descriptions[2..3]
+
+TOOLING / PROJECT
+  Screenshots    tmp_preview/shot.mjs — headless Chrome over CDP, no dependencies
+  Theme check    tmp_preview/theme_check.mjs — 72 assertions across all screens
+  Samples        samples/frontend_resume.txt + samples/frontend_jd.txt
+  Design source  comps/*.png (look) + DESIGN_SYSTEM.md (tokens, components, copy deck)
+  State          sessionStorage handoff: analysis / resume_text / job_description
