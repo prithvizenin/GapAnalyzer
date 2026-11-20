@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import { StepIndicator } from "@/components/ui/StepIndicator";
 import { NavWordmark } from "@/components/Nav";
@@ -10,13 +11,14 @@ import { Button } from "@/components/ui/Button";
 import { AnnotationItem } from "@/components/ui/AnnotationItem";
 import { SuggestionCard } from "@/components/ui/SuggestionCard";
 import { DiffRow } from "@/components/ui/DiffRow";
+import { ApiKeyDialog } from "@/components/ui/ApiKeyDialog";
 import {
   CATEGORY_LABELS,
   MOCK_ANALYSIS,
   type AnalysisResult,
   type MissingSkill,
 } from "@/lib/analysis";
-import { API_URL } from "@/lib/api";
+import { API_URL, readApiKey, saveApiKey } from "@/lib/api";
 
 /** Copy deck (DESIGN_SYSTEM §6) fixes screen 05's list to these five, in order. */
 const REPORT_SKILLS = [
@@ -40,9 +42,13 @@ const CONNECTION_ERROR =
  * Same data handoff as /results: sessionStorage "analysis", else the §9 mock.
  */
 export default function ReportPage() {
+  const router = useRouter();
   const [data, setData] = useState<AnalysisResult>(MOCK_ANALYSIS);
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  /** Gemini key dialog (§4 #25): tailoring needs a key the install does not ship. */
+  const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [keyPrefill, setKeyPrefill] = useState("");
   const root = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -187,8 +193,17 @@ export default function ReportPage() {
 
             <div className="js-reveal mt-7 max-w-[360px] border-t border-rule pt-7">
               {/* Week 12 entry point (user addition — comp 05 had only the
-                  download CTA): review the tailored resume next. */}
-              <Button href="/rewrite" mono className="w-full">
+                  download CTA): review the tailored resume next. Since the
+                  rewrite runs on Gemini and no shared key ships, this opens
+                  the key dialog (§4 #25) before /rewrite. */}
+              <Button
+                mono
+                className="w-full"
+                onClick={() => {
+                  setKeyPrefill(readApiKey());
+                  setKeyDialogOpen(true);
+                }}
+              >
                 Tailor my resume
                 <span aria-hidden>→</span>
               </Button>
@@ -216,6 +231,20 @@ export default function ReportPage() {
           </section>
         </div>
       </div>
+
+      {/* Gemini key dialog — the key is stored for this tab and forwarded to
+          `POST /api/rewrite`; "continue without a key" travels with none and
+          lets the server's env key (or the labelled fallback) answer. */}
+      <ApiKeyDialog
+        open={keyDialogOpen}
+        initialKey={keyPrefill}
+        onClose={() => setKeyDialogOpen(false)}
+        onSubmit={(key) => {
+          saveApiKey(key);
+          setKeyDialogOpen(false);
+          router.push("/rewrite");
+        }}
+      />
     </main>
   );
 }

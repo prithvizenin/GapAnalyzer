@@ -31,7 +31,11 @@ Configuration (env):
     LLM_MODEL       default gemini-3.5-flash (gemini-2.5-flash now 404s for
                     new API keys — retired names and demand spikes fall
                     through a short candidate ladder, see _model_candidates)
-    LLM_TIMEOUT     seconds, default 60
+    LLM_TIMEOUT     seconds, default 120
+
+A key may also arrive per request: `POST /api/rewrite` accepts `api_key`
+(the tailor dialog collects one in the browser), and `tailor(..., api_key=...)`
+uses it ahead of the environment. It is never stored, echoed or logged.
 
 Gemini is spoken to through its OpenAI-compatible layer, so the request below
 is the same chat-completions call either way. Documented in context.md §0/§9.
@@ -265,6 +269,20 @@ def _api_key() -> str:
     return ""
 
 
+def _resolve_key(supplied: str = "") -> str:
+    """Credential for this request — the user's key wins over the server's.
+
+    Deployed installs ship no shared key, so the tailor dialog collects one in
+    the browser and `/api/rewrite` forwards it as `api_key`. A supplied value is
+    used as-is (a `your-…` placeholder is ignored, like in `.env`) and is never
+    stored, echoed back or logged. No supplied key → the environment chain.
+    """
+    candidate = (supplied or "").strip()
+    if candidate and not candidate.startswith(_PLACEHOLDER_PREFIX):
+        return candidate
+    return _api_key()
+
+
 def _model_candidates() -> list[str]:
     """Model names to try, most preferred first (configured model leads).
 
@@ -306,22 +324,27 @@ def _status_reason(status: int) -> str:
     return "provider_error"
 
 
-def _call_llm(system: str, user: dict) -> tuple[dict | None, str, str]:
+def _call_llm(
+    system: str, user: dict, supplied_key: str = ""
+) -> tuple[dict | None, str, str]:
     """One JSON chat-completions call, with bounded retries.
 
-    Returns `(parsed_json_or_None, model_label, reason)`. Transient provider
-    trouble (429/5xx) is retried once on the *same* model — a demand spike
-    lasts seconds, and jumping to a slower candidate turns it into a minute of
-    waiting. Only a retired (404) / overloaded (503) model name advances the
-    ladder; the reason is `""` on success so the UI can name what happened.
+    `supplied_key` is the viewer's own key from the tailor dialog; blank means
+    "use the server's". Returns `(parsed_json_or_None, model_label, reason)`.
+    Transient provider trouble (429/5xx) is retried once on the *same* model — a
+    demand spike lasts seconds, and jumping to a slower candidate turns it into
+    a minute of waiting. Only a retired (404) / overloaded (503) model name
+    advances the ladder; the reason is `""` on success so the UI can name what
+    happened.
     """
-    key = _api_key()
+    key = _resolve_key(supplied_key)
     if not key:
         logger.info(
             "no Gemini API key — rewrite runs in fallback mode "
-            "(set GEMINI_API_KEY in backend/.env)"
+            "(add one in the tailor dialog or set GEMINI_API_KEY in backend/.env)"
         )
         return None, "", "no_key"
+    user_supplied = bool((supplied_key or "").strip())
 
     headers = {
         "Authorization": f"Bearer {key}",
@@ -408,7 +431,12 @@ def _call_llm(system: str, user: dict) -> tuple[dict | None, str, str]:
                 time.sleep(1.5)
                 continue
 
-            reason = _status_reason(response.status_code)
+            # A rejected *user-supplied* key is the viewer's problem to fix, so
+            # it gets its own reason instead of the generic provider error.
+            if user_supplied and response.status_code in (400, 401, 403):
+                reason = "invalid_key"
+            else:
+                reason = _status_reason(response.status_code)
             logger.warning(
                 "rewrite provider %s on %s: %s",
                 response.status_code,
@@ -444,10 +472,12 @@ def _apply(text: str, replacements: dict[int, str]) -> str:
     return "\n".join(out)
 
 
-def tailor(resume_text: str, jd_text: str) -> dict:
+def tailor(resume_text: str, jd_text: str, api_key: str = "") -> dict:
     """Rewrite the resume for the posting, or degrade to a safe fallback.
 
-    Returns the `RewriteResponse` payload (context.md §9): `mode`, `model`,
+    `api_key` is the key the user entered in the tailor dialog (wins over the
+    server's `GEMINI_API_KEY`; see `_resolve_key`). Returns the
+    `RewriteResponse` payload (context.md §9): `mode`, `model`, `reason`,
     `revised_resume`, per-line `rewrites`, gap `additions` and `stats`.
     """
     analysis = matching.analyze(resume_text, jd_text)
@@ -476,6 +506,7 @@ def tailor(resume_text: str, jd_text: str) -> dict:
                 "missing_skills": sorted(blocked),
                 "lines": [{"id": f"L{index}", "text": body} for index, _, body in lines],
             },
+            supplied_key=api_key,
         )
 
     model_rewrites: dict[str, dict] = {}

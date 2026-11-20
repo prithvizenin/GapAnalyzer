@@ -22,7 +22,9 @@ BACKEND  (backend/)
   Semantics      sentence-transformers, all-mpnet-base-v2 (~420 MB, CPU)
                  EMBEDDING_MODEL overrides the model; SEMANTIC_THRESHOLD defaults to 0.50
   Rewriting      Google Gemini (gemini-3.5-flash) via its OpenAI-compatible endpoint,
-                 called with httpx; key in backend/.env (GEMINI_API_KEY)
+                 called with httpx; key in backend/.env (GEMINI_API_KEY) OR supplied
+                 per request: /report's tailor dialog stores the viewer's own key in
+                 sessionStorage and POST /api/rewrite forwards it as `api_key`
                  LLM_MODEL / LLM_BASE_URL / LLM_TIMEOUT override the defaults;
                  retired/overloaded model names fall through a short candidate
                  ladder (gemini-3.5-flash → gemini-3.8-flash → gemini-flash-latest)
@@ -32,7 +34,7 @@ BACKEND  (backend/)
 API ROUTES
   GET  /health
   POST /api/analyze         multipart: resume file | resume_text, plus job_description
-  POST /api/rewrite         JSON: resume_text + job_description
+  POST /api/rewrite         JSON: resume_text + job_description + optional api_key
   POST /api/rewrite/export  JSON: resume_text + format (docx | pdf)
   POST /api/report/export   JSON: analysis fields + format (docx | pdf)
   POST /api/compare         JSON: resume_text + job_descriptions[2..3]

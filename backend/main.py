@@ -89,6 +89,8 @@ def rewrite_resume(request: RewriteRequest) -> RewriteResponse:
 
     Never fabricates experience (see rewrite.py); degrades to `mode: fallback`
     when the LLM is unavailable, so this route only 500s on a real bug.
+    `api_key` is the viewer's own key from the tailor dialog and wins over the
+    server's GEMINI_API_KEY — deployed installs ship no shared credential.
     """
     if not request.job_description.strip():
         raise HTTPException(status_code=422, detail="Job description is required.")
@@ -98,7 +100,9 @@ def rewrite_resume(request: RewriteRequest) -> RewriteResponse:
         )
 
     try:
-        return rewrite_engine.tailor(request.resume_text, request.job_description)
+        return rewrite_engine.tailor(
+            request.resume_text, request.job_description, api_key=request.api_key
+        )
     except Exception:
         logger.exception("rewrite pipeline failed")
         raise HTTPException(status_code=500, detail="Rewrite pipeline failed.")

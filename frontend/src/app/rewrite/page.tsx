@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { RewriteRow } from "@/components/ui/RewriteRow";
 import { SuggestionCard } from "@/components/ui/SuggestionCard";
 import { useMotion, gsap, EASE, T } from "@/lib/motion";
-import { API_URL } from "@/lib/api";
+import { API_URL, readApiKey } from "@/lib/api";
 import { CATEGORY_LABELS } from "@/lib/analysis";
 import { cn } from "@/lib/cn";
 import type { ExportFormat, RewriteResult } from "@/lib/rewrite";
@@ -38,6 +38,7 @@ const FALLBACK_REASONS: Record<string, string> = {
   overloaded: "The provider is briefly overloaded — retry in a minute.",
   unreachable: "The provider could not be reached.",
   provider_error: "The provider returned an error.",
+  invalid_key: "The key was rejected — check it and try again.",
   non_json: "The provider returned an unexpected reply.",
   unexpected_body: "The provider returned an unexpected reply.",
   no_candidate_lines:
@@ -91,10 +92,18 @@ export default function RewritePage() {
 
     void (async () => {
       try {
+        // The viewer's own Gemini key from the tailor dialog (§4 #25). Omitted
+        // when they continued without one, so the server's environment key (or
+        // the labelled fallback) answers instead.
+        const apiKey = readApiKey();
         const res = await fetch(`${API_URL}/api/rewrite`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ resume_text: resume, job_description: jd }),
+          body: JSON.stringify({
+            resume_text: resume,
+            job_description: jd,
+            ...(apiKey ? { api_key: apiKey } : {}),
+          }),
         });
 
         let payload: unknown = null;

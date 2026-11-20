@@ -28,7 +28,8 @@ export interface RewriteResult {
   mode: "llm" | "fallback";
   /** Why the model did not run when `mode` is `fallback` (`""` on success):
    *  `no_key` · `model_unavailable` · `rate_limited` · `overloaded` ·
-   *  `unreachable` · `provider_error` · `non_json` · `unexpected_body` ·
+   *  `unreachable` · `provider_error` · `invalid_key` (a rejected key supplied
+   *  in the tailor dialog) · `non_json` · `unexpected_body` ·
    *  `no_candidate_lines`. */
   reason?: string;
   model: string;

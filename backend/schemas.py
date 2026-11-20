@@ -51,10 +51,16 @@ class RewriteRequest(BaseModel):
     """Week 12 — the resume text to tailor plus the posting to tailor it for.
 
     Plain JSON: the frontend already holds both strings after /api/analyze.
+
+    `api_key` (week 13, user addition) is the viewer's own Gemini key from the
+    tailor dialog, used ahead of the server's `GEMINI_API_KEY` so a deployed
+    install needs no shared credential. Optional: blank means "use the
+    server's key"; the value is never stored or echoed.
     """
 
     resume_text: str
     job_description: str
+    api_key: str = ""
 
 
 class RewrittenLine(BaseModel):
@@ -94,8 +100,9 @@ class RewriteResponse(BaseModel):
     mode: Literal["llm", "fallback"]
     # Why the model did not run, when `mode == "fallback"` (`""` on success):
     # no_key · model_unavailable · rate_limited · overloaded · unreachable ·
-    # provider_error · non_json · unexpected_body · no_candidate_lines. The
-    # screen names the cause instead of blaming "the AI" for every case.
+    # provider_error · invalid_key · non_json · unexpected_body ·
+    # no_candidate_lines. The screen names the cause instead of blaming "the
+    # AI" for every case; `invalid_key` only occurs for a user-supplied key.
     reason: str = ""
     model: str
     revised_resume: str
