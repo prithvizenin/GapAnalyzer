@@ -40,8 +40,6 @@ API ROUTES
   POST /api/compare         JSON: resume_text + job_descriptions[2..3]
 
 TOOLING / PROJECT
-  Screenshots    tmp_preview/shot.mjs — headless Chrome over CDP, no dependencies
-  Theme check    tmp_preview/theme_check.mjs — 72 assertions across all screens
   Samples        samples/frontend_resume.txt + samples/frontend_jd.txt
   Design source  comps/*.png (look) + DESIGN_SYSTEM.md (tokens, components, copy deck)
   State          sessionStorage handoff: analysis / resume_text / job_description

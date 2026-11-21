@@ -1,4 +1,0 @@
-Sam Roe - Engineer
-- Led a cross-functional team of six engineers and coached two interns.
-- Automated builds and releases with GitHub Actions.
-- Built REST APIs in Python.

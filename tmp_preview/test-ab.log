@@ -1,8 +1,0 @@
-INFO:sentence_transformers.base.model:No device provided, using cpu
-INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-mpnet-base-v2 "HTTP/1.1 200 OK"
-INFO:sentence_transformers.base.model:Loading SentenceTransformer model from sentence-transformers/all-mpnet-base-v2.
-Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights:  21%|██        | 41/199 [00:00<00:00, 404.05it/s]Loading weights:  41%|████      | 82/199 [00:00<00:00, 366.66it/s]Loading weights:  64%|██████▍   | 127/199 [00:00<00:00, 379.58it/s]Loading weights: 100%|██████████| 199/199 [00:00<00:00, 463.70it/s]
-INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-mpnet-base-v2/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
-INFO:httpx:HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-mpnet-base-v2/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
-INFO:httpx:HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-mpnet-base-v2/resolve/e8c3b32edf5434bc2275fc9bab85f82640a19130/2_Normalize/config.json "HTTP/1.1 404 Not Found"
-INFO:gapanalyzer:semantic matching ready: sentence-transformers/all-mpnet-base-v2 (threshold 0.50)

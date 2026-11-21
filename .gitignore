@@ -1,0 +1,18 @@
+# Local agent / tool state — never part of the project
+.freebuff/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+
+# Scratch captures and probes (docs/screens/ is the published screenshot set)
+/*.jpg
+/*.jpeg
+/*.png
+!_shots_placeholder*

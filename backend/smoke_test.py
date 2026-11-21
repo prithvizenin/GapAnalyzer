@@ -1,7 +1,7 @@
 """Backend smoke test — the project's verification for the API (no pytest suite).
 
 Start the API first (cd backend && python main.py), then:  python smoke_test.py
-70 checks: contract shape + copy-deck strings on the happy paths (TXT upload,
+73 checks: contract shape + copy-deck strings on the happy paths (TXT upload,
 pasted text, real PDF, DOCX), the full error contract (400/413/422), the
 weeks 8–9 semantic layer (paraphrase promoted to semantic, distractor stays
 missing), the weeks 10–11 categorized suggestions, the improvement plan /
