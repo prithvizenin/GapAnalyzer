@@ -1,0 +1,29 @@
+# Render blueprint for the GapAnalyzer API.
+# Deploy: Render Dashboard → New → Blueprint → pick this repo.
+# The frontend is deployed separately on Vercel.
+services:
+  - type: web
+    name: gapanalyzer-api
+    runtime: docker
+    plan: standard # 2 GB RAM — the free/starter 512 MB tiers OOM on torch + mpnet
+    region: oregon
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      # Persistent model cache, mounted at /data (see disk below).
+      - key: HF_HOME
+        value: /data/hf
+      # Set these in the dashboard after the first deploy (sync: false = prompt).
+      # Comma-separated exact origins, e.g. https://gapanalyzer.vercel.app
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # Optional: server-side key for /api/rewrite. Leave unset to use the
+      # per-viewer key collected by the UI's dialog.
+      - key: GEMINI_API_KEY
+        sync: false
+    disk:
+      name: hf-cache
+      mountPath: /data
+      sizeGB: 5

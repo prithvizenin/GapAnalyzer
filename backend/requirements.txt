@@ -1,9 +1,12 @@
-fastapi
-uvicorn[standard]
-python-multipart
-httpx
-pdfplumber
-python-docx
-scikit-learn
-sentence-transformers
-reportlab
+# Floors only: the verified local install is newer than some mirrors carry, so
+# exact pins were rejected at resolution time. The Dockerfile installs CPU-only
+# torch separately, so torch is not listed here.
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+httpx>=0.27
+pdfplumber>=0.11
+python-docx>=1.1
+scikit-learn>=1.5
+sentence-transformers>=3.0
+reportlab>=4.2
