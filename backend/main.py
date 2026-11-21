@@ -12,6 +12,7 @@ Errors: 400 bad type · 413 too large · 422 no extractable text / no JD · 500 
 
 import logging
 import os
+import re
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,20 +36,52 @@ from schemas import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gapanalyzer")
 
+# Deploy note: the frontend is served by Vercel, whose production + preview
+# origins are `<project>-<hash>.vercel.app`, so `https://*.vercel.app` is a
+# default. That is safe here — the API is stateless and credential-free (no
+# cookies, no auth, no stored data), so CORS is a convenience, not a boundary.
 _DEFAULT_ORIGINS = (
     "http://localhost:3000,http://localhost:3100,"
-    "http://127.0.0.1:3000,http://127.0.0.1:3100"
+    "http://127.0.0.1:3000,http://127.0.0.1:3100,"
+    "https://*.vercel.app"
+)
+
+
+def _cors_origins(raw: str) -> tuple[list[str], str | None]:
+    """Split ALLOWED_ORIGINS into exact origins + one wildcard regex.
+
+    Entries are comma-separated. `*` is allowed inside the host (`https://
+    *.vercel.app`) and expands to a single-label host match, so a URL with no
+    matching origin still gets no CORS headers — a typo cannot silently widen
+    the rule to every site (unlike FastAPI's `["*"]`, which also strips the
+    `Vary: Origin` header).
+    """
+    exact: list[str] = []
+    patterns: list[str] = []
+    for entry in (part.strip().rstrip("/") for part in raw.split(",")):
+        if not entry:
+            continue
+        if "*" in entry:
+            patterns.append(re.escape(entry).replace(r"\*", "[A-Za-z0-9.-]+"))
+        else:
+            exact.append(entry)
+    regex = "^(" + "|".join(patterns) + ")$" if patterns else None
+    return exact, regex
+
+
+_ALLOWED_ORIGINS, _ALLOWED_ORIGIN_REGEX = _cors_origins(
+    os.getenv("ALLOWED_ORIGINS", _DEFAULT_ORIGINS)
+)
+logger.info(
+    "CORS: exact=%s wildcard=%s", _ALLOWED_ORIGINS, _ALLOWED_ORIGIN_REGEX or "none"
 )
 
 app = FastAPI(title="GapAnalyzer API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        origin.strip()
-        for origin in os.getenv("ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",")
-        if origin.strip()
-    ],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_origin_regex=_ALLOWED_ORIGIN_REGEX,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )

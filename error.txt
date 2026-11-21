@@ -1,0 +1,5 @@
+1793020584725
+sharebx.js:20 1793020584725
+css.js:368 cssjs
+upload:1 Access to fetch at 'https://gapanalyzer-qvjn.onrender.com/api/analyze' from origin 'https://gap-analyzer-xi.vercel.app' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+gapanalyzer-qvjn.onrender.com/api/analyze:1  Failed to load resource: net::ERR_FAILED

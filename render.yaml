@@ -15,8 +15,10 @@ services:
       # Persistent model cache, mounted at /data (see disk below).
       - key: HF_HOME
         value: /data/hf
-      # Set these in the dashboard after the first deploy (sync: false = prompt).
-      # Comma-separated exact origins, e.g. https://gapanalyzer.vercel.app
+      # Optional — the code's defaults already allow localhost:3000/3100 and
+      # https://*.vercel.app, so a Vercel frontend needs no dashboard entry.
+      # Set it only for a custom domain: comma-separated origins, either exact
+      # (https://gapanalyzer.app) or wildcard (https://*.gapanalyzer.app).
       - key: ALLOWED_ORIGINS
         sync: false
       # Optional: server-side key for /api/rewrite. Leave unset to use the
