@@ -7,6 +7,7 @@ import { StepIndicator } from "@/components/ui/StepIndicator";
 import { Sheet, Paperclip } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { RewriteRow } from "@/components/ui/RewriteRow";
+import { TailoringPanel } from "@/components/rewrite/TailoringPanel";
 import { SuggestionCard } from "@/components/ui/SuggestionCard";
 import { useMotion, gsap, EASE, T } from "@/lib/motion";
 import { API_URL, readApiKey } from "@/lib/api";
@@ -244,11 +245,7 @@ export default function RewritePage() {
         Tailored resume
       </h1>
 
-      {phase === "loading" && (
-        <p role="status" aria-live="polite" className={`${SUB_LABEL} mt-8`}>
-          Tailoring…
-        </p>
-      )}
+      {phase === "loading" && <TailoringPanel />}
 
       {phase === "empty" && (
         <Sheet className="js-sheet mt-8 p-7 md:p-8">
