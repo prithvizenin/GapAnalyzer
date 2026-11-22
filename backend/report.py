@@ -36,11 +36,23 @@ def _mentions(count: int) -> str:
     return f"mentioned {count} time" + ("" if count == 1 else "s")
 
 
+def _int(value, fallback: int = 0) -> int:
+    """Coerce a client-supplied number for the report (bad values → fallback).
+
+    `/api/report/export` accepts the analysis payload the browser echoes back,
+    and a malformed number there must not turn the download into a 500.
+    """
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
 def render(analysis: dict) -> str:
     """Analysis payload → the report body as text lines."""
     lines: list[str] = []
     add = lines.append
-    score = int(analysis.get("match_score") or 0)
+    score = _int(analysis.get("match_score"))
 
     add("GAP ANALYSIS REPORT")
     add("GapAnalyzer")
@@ -53,7 +65,7 @@ def render(analysis: dict) -> str:
     add("CATEGORY BREAKDOWN")
     categories = analysis.get("categories") or {}
     for category in _ORDER:
-        add(f"  {CATEGORY_LABELS[category]}: {int(categories.get(category, 0))}%")
+        add(f"  {CATEGORY_LABELS[category]}: {_int(categories.get(category, 0))}%")
     add("")
 
     matched = analysis.get("matched_skills") or []
@@ -73,7 +85,7 @@ def render(analysis: dict) -> str:
         for label, items in _grouped(missing):
             add(f"  {label}")
             for item in items:
-                mentions = int(item.get("jd_mentions") or 0)
+                mentions = _int(item.get("jd_mentions"))
                 add(f"    - {item['skill']} ({_mentions(mentions)})")
                 why = (item.get("why") or "").strip()
                 if why:

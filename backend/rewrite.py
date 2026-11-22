@@ -76,8 +76,17 @@ def _load_env_file(path: Path) -> None:
     one setting a developer edits by hand. Variables already set in the shell
     always win, so `GEMINI_API_KEY=... python main.py` overrides the file.
     Unreadable/missing file is not an error (env-only setups are normal).
+
+    The file may hold a real credential, so a group/world-readable file gets a
+    one-line warning (it is still loaded — refusing would silently degrade the
+    documented `backend/.env` workflow to fallback mode).
     """
     try:
+        if path.exists() and path.stat().st_mode & 0o077:
+            logger.warning(
+                "%s is group/world readable — chmod 600 it to protect the key",
+                path,
+            )
         lines = path.read_text(encoding="utf-8").splitlines()
     except OSError:
         return

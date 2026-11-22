@@ -1,5 +1,9 @@
 # Local agent / tool state — never part of the project
 .freebuff/
+.agents/
+.claude/
+skills-lock.json
+/AGENTS.md
 
 # Python
 __pycache__/

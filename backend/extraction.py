@@ -85,7 +85,14 @@ async def extract_resume(
         if extension not in ALLOWED_EXTENSIONS:
             raise HTTPException(status_code=400, detail=_TYPE_ERROR)
 
-        data = await resume.read()
+        # Reject on the advertised size before buffering the body, so an
+        # oversized upload is refused without reading the whole stream into RAM;
+        # the byte length is still checked below for clients that lie about it.
+        advertised = getattr(resume, "size", None)
+        if isinstance(advertised, int) and advertised > MAX_BYTES:
+            raise HTTPException(status_code=413, detail=_SIZE_ERROR)
+
+        data = await resume.read(MAX_BYTES + 1)
         if len(data) > MAX_BYTES:
             raise HTTPException(status_code=413, detail=_SIZE_ERROR)
 

@@ -23,6 +23,7 @@ profiled text and the labels stay valid.
 """
 
 import io
+import math
 import re
 import statistics
 
@@ -404,23 +405,163 @@ def profile(data: bytes | None, extension: str, text: str) -> dict:
     return resolved(measured, text)
 
 
+# ------------------------------------------------------------------ sanitising
+#
+# `resolved()` is the trust boundary for `POST /api/rewrite/export` and
+# `POST /api/report/export`: the client echoes back the profile it stored, so
+# the JSON is attacker-controlled. The renderers assume real numbers and known
+# font names, so a crafted payload (a string width, a 1e9-pt page, a 9-float
+# colour) would otherwise crash the route — or make reportlab allocate an absurd
+# document. Everything numeric is therefore clamped to a sane range and every
+# non-finite/invalid value falls back to the template default.
+
+_NUMBER = (int, float)
+
+_PAGE_LIMITS = (100.0, 3000.0)         # points; US Letter is 612 × 792
+_LEADING_LIMITS = {
+    "body": (6.0, 30.0),
+    "heading_before": (0.0, 60.0),
+    "heading_rule": (6.0, 40.0),
+    "rule_after": (0.0, 60.0),
+    "rule": (0.0, 6.0),
+}
+_BULLET_CHAR = 3                        # widest glyph run we will render
+
+
+def _finite(value) -> bool:
+    """True for a real, finite number — never a bool, string or NaN/inf."""
+    return (
+        isinstance(value, _NUMBER)
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+    )
+
+
+def _number(value, fallback: float, low: float, high: float) -> float:
+    """Clamp `value` into `[low, high]`, or return the template default."""
+    if not _finite(value):
+        return float(fallback)
+    return round(min(max(float(value), low), high), 1)
+
+
+def _size(role: str, value) -> float:
+    low, high = _LIMITS.get(role, (6.0, 40.0))
+    return _number(value, TEMPLATE["size"].get(role, 10.0), low, high)
+
+
+def _rgb(value, fallback: list[float]) -> list[float]:
+    """A 3-channel colour, each channel in 0–1 (reportlab.Color needs three)."""
+    if not isinstance(value, (list, tuple)) or len(value) != 3:
+        return list(fallback)
+    return [
+        round(min(max(float(c), 0.0), 1.0), 3) if _finite(c) else d
+        for c, d in zip(value, fallback)
+    ]
+
+
+def _font(value, family: str) -> dict:
+    """Keep only real base-14 cuts within the chosen family.
+
+    reportlab raises `ValueError` on an unknown `fontName`, and the PDF path is
+    where an unhandled one would 500 the route; any unrecognised cut is replaced
+    by the family's own.
+    """
+    if not isinstance(value, dict):
+        value = {}
+    normal, bold, italic = _FAMILIES[family]
+    aliases = {
+        normal: normal,
+        bold: bold,
+        italic: italic,
+        "Helvetica": normal,
+        "Helvetica-Bold": bold,
+        "Helvetica-Oblique": italic,
+        "Times-Roman": normal,
+        "Times-Bold": bold,
+        "Times-Italic": italic,
+        "Courier": normal,
+        "Courier-Bold": bold,
+        "Courier-Oblique": italic,
+    }
+    return {
+        "family": normal,
+        "bold": aliases.get(str(value.get("bold")), bold),
+        "italic": aliases.get(str(value.get("italic")), italic),
+    }
+
+
 def resolved(layout: dict | None, text: str) -> dict:
     """Merge a (possibly partial, client-supplied) profile over `TEMPLATE`.
 
     Every nested block is filled key by key, so an export request carrying an
-    older or truncated profile still renders. `roles` is recomputed whenever it
-    does not line up with the text — the rewrite preserves line count, but a
-    hand-edited or mismatched payload must not shift the styles.
+    older or truncated profile still renders. Because this runs on client input,
+    every numeric leaf is clamped and every enum is checked (see the sanitising
+    block above) — a hand-edited or hostile payload must neither crash the
+    renderer nor shift the styles. `roles` is recomputed whenever it does not
+    line up with the text for the same reason.
     """
-    layout = layout or {}
+    layout = layout if isinstance(layout, dict) else {}
     merged = {**TEMPLATE, **{k: v for k, v in layout.items() if v is not None}}
-    for key in ("page", "margin", "font", "size", "leading", "color", "bullet"):
-        value = layout.get(key)
-        merged[key] = {**TEMPLATE[key], **(value if isinstance(value, dict) else {})}
+
+    page = layout.get("page") if isinstance(layout.get("page"), dict) else {}
+    merged["page"] = {
+        "width": _number(page.get("width"), TEMPLATE["page"]["width"], *_PAGE_LIMITS),
+        "height": _number(page.get("height"), TEMPLATE["page"]["height"], *_PAGE_LIMITS),
+    }
+    # A margin wider than half the page would make a negative frame and crash
+    # reportlab, so clamp each side against the smaller page dimension.
+    margin_cap = min(merged["page"]["width"], merged["page"]["height"]) / 2
+    margin = layout.get("margin") if isinstance(layout.get("margin"), dict) else {}
+    merged["margin"] = {
+        side: _number(margin.get(side), TEMPLATE["margin"][side], 0.0, margin_cap)
+        for side in ("top", "bottom", "left", "right")
+    }
+    # Even clamped, a tiny page with template-era margins leaves reportlab a
+    # frame with no room for content (LayoutError → 500). If the usable area is
+    # not positive, the measured page is not usable at all: use the template.
+    frame_w = merged["page"]["width"] - merged["margin"]["left"] - merged["margin"]["right"]
+    frame_h = merged["page"]["height"] - merged["margin"]["top"] - merged["margin"]["bottom"]
+    if frame_w < 36 or frame_h < 36 or not (_finite(frame_w) and _finite(frame_h)):
+        merged["page"] = dict(TEMPLATE["page"])
+        merged["margin"] = dict(TEMPLATE["margin"])
+
+    font = layout.get("font")
+    family = _family_of(
+        str(font.get("family", "")) if isinstance(font, dict) else ""
+    )
+    merged["font"] = _font(font, family)
+
+    size = layout.get("size") if isinstance(layout.get("size"), dict) else {}
+    merged["size"] = {role: _size(role, size.get(role)) for role in TEMPLATE["size"]}
+
+    leading = layout.get("leading") if isinstance(layout.get("leading"), dict) else {}
+    merged["leading"] = {
+        key: _number(leading.get(key), TEMPLATE["leading"][key], *_LEADING_LIMITS[key])
+        for key in TEMPLATE["leading"]
+    }
+
+    color = layout.get("color") if isinstance(layout.get("color"), dict) else {}
+    merged["color"] = {
+        "text": _rgb(color.get("text"), TEMPLATE["color"]["text"]),
+        "muted": _rgb(color.get("muted"), TEMPLATE["color"]["muted"]),
+    }
+
+    bullet = layout.get("bullet") if isinstance(layout.get("bullet"), dict) else {}
+    char = str(bullet.get("char", TEMPLATE["bullet"]["char"]))
+    merged["bullet"] = {
+        # Keep the template glyph when the client sends gibberish rather than
+        # rendering a multi-line bullet marker.
+        "char": char if char.strip() and len(char) <= _BULLET_CHAR else TEMPLATE["bullet"]["char"],
+        "indent": _number(bullet.get("indent"), TEMPLATE["bullet"]["indent"], 0.0, 72.0),
+    }
 
     lines = text.split("\n")
     roles = layout.get("roles")
-    if not isinstance(roles, list) or len(roles) != len(lines):
+    if (
+        not isinstance(roles, list)
+        or len(roles) != len(lines)
+        or any(role not in _ROLES for role in roles)
+    ):
         roles = classify(text)
     merged["roles"] = roles
     return merged

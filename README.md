@@ -274,7 +274,7 @@ backend/                  FastAPI service (flat imports; Docker context = backen
   main.py                    routes, CORS allowlist, startup logging
   schemas.py                 the response contract, as Pydantic models
   extraction.py              PDF/DOCX/TXT → clean text (+ glyph repair)
-  layout.py                  page geometry, role type scale, line classification
+  layout.py                  page geometry, role type scale, line classification (+ clamps client-supplied profiles)
   skills.py                  117-entry dictionary + word-edge regex matcher
   matching.py                scoring, recommendations, comparison, improvement plan
   embeddings.py              sentence-embedding semantic evidence layer
@@ -282,6 +282,7 @@ backend/                  FastAPI service (flat imports; Docker context = backen
   export.py                  DOCX/PDF rendering in the resume's own layout
   report.py                  the gap report as printable text
   smoke_test.py              73 contract checks against a running API
+  security_probe.py          hostile-input probe (export layout, upload size, report payloads)
   Dockerfile                 python:3.12-slim + CPU torch, one uvicorn worker
 
 frontend/                 Next.js 16 (App Router, TypeScript, Tailwind v4)
@@ -311,6 +312,12 @@ python smoke_test.py              # terminal 2 → prints 73/73 passed
 ```
 
 It covers TXT upload, pasted text, a real generated PDF and a DOCX, the 400/413/422 error contract, semantic promotion (a paraphrase passes, a distractor stays missing), categorized suggestions, the improvement plan, rewrite invariants and fallbacks, comparison, and the DOCX/PDF magic bytes and headers. Point it elsewhere with `GAPANALYZER_API=http://host:port`.
+
+`security_probe.py` drives the same running API with hostile input — crafted export `layout` profiles (string widths, a 1e9-pt page, unknown fonts, 9-float colours, NaN literals), a 6 MB upload, and malformed report payloads. Every case must answer 200/413/422; a 500 is a regression. Run it after touching `layout.py` or either export route:
+
+```bash
+python security_probe.py          # → FAILURES: 0
+```
 
 > **Warm the API first on a cold machine.** The smoke test uses a 30-second client timeout, and the very first analysis loads the ~420 MB embedding model — so on a fresh instance, send one analysis (the `curl` above) and wait for it to finish before running the suite, or the first check fails with `httpx.ReadTimeout` rather than a real defect.
 

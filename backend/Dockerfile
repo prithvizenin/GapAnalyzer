@@ -27,7 +27,14 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # App code + data/skill_dictionary.json (read relative to skills.py).
-COPY . .
+# `--chmod` keeps every copied file non-executable (the image does not need any).
+COPY --chmod=644 . .
+
+# Run as an unprivileged user: the app never needs root, and the HF cache dir is
+# handed to it explicitly so a write in one build cannot depend on root's home.
+RUN addgroup --system app && adduser --system --ingroup app app \
+    && mkdir -p /app/.cache/huggingface && chown -R app:app /app/.cache
+USER app
 
 ENV PORT=8000
 EXPOSE 8000
