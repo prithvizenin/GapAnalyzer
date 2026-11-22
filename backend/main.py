@@ -8,8 +8,14 @@ POST /api/analyze — multipart/form-data:
     resume_text   plain-text resume       — sent on paste (one of the two)
     job_description (required)
 Errors: 400 bad type · 413 too large · 422 no extractable text / no JD · 500 pipeline
+
+POST /api/preview — same inputs and errors, extraction only (no scoring):
+    answers in extraction time so the analyzing screen can show the real word
+    count, page count, tracked/matched skill counts and a resume excerpt while
+    /api/analyze is still running. Never returns a match score.
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -21,6 +27,7 @@ from fastapi.responses import Response
 import export as export_engine
 import extraction
 import matching
+import preview as preview_engine
 import report as report_engine
 import rewrite as rewrite_engine
 from schemas import (
@@ -28,6 +35,7 @@ from schemas import (
     CompareRequest,
     CompareResponse,
     ExportRequest,
+    PreviewResponse,
     ReportExportRequest,
     RewriteRequest,
     RewriteResponse,
@@ -92,6 +100,40 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.post("/api/preview", response_model=PreviewResponse)
+async def preview_documents(
+    resume: UploadFile | None = File(None),
+    resume_text: str | None = Form(None),
+    job_description: str = Form(...),
+) -> PreviewResponse:
+    """The analyzing screen's first beat — extraction only, no scoring.
+
+    Same inputs and the same 400/413/422/500 errors as `/api/analyze` (it calls
+    the same extractor), so the client can show real counts and a real excerpt
+    immediately and only then wait for the analysis. It never scores:
+    `/results` stays the single source of the match percentage.
+    """
+    if not job_description.strip():
+        raise HTTPException(status_code=422, detail="Job description is required.")
+
+    try:
+        resume_body, _layout, pages = await extraction.extract_document(
+            resume, resume_text
+        )
+        payload = preview_engine.build(
+            resume_body,
+            job_description,
+            resume.filename if resume is not None else "",
+            pages,
+        )
+        return PreviewResponse(**payload)
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("preview failed")
+        raise HTTPException(status_code=500, detail="Analysis pipeline failed.")
+
+
 @app.post("/api/analyze", response_model=AnalysisResponse)
 async def analyze(
     resume: UploadFile | None = File(None),
@@ -104,7 +146,11 @@ async def analyze(
     resume_body, resume_layout = await extraction.extract_resume(resume, resume_text)
 
     try:
-        payload = matching.analyze(resume_body, job_description)
+        # Matching is CPU-bound (TF-IDF + the embedding pass). Running it on
+        # the event loop would block every other request — including the
+        # analyzing screen's /api/preview, which must answer while this is
+        # still running. A worker thread keeps the loop free.
+        payload = await asyncio.to_thread(matching.analyze, resume_body, job_description)
         # Week 12: the extracted text goes back so /rewrite can reuse it.
         # Week 13: so does the page's measured format, so the export download
         # can be rebuilt in the resume's own design instead of plain text.

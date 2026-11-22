@@ -38,14 +38,16 @@ def _normalise_glyphs(text: str) -> str:
     return text
 
 
-def _from_pdf(data: bytes) -> str:
+def _from_pdf(data: bytes) -> tuple[str, int]:
+    """Extract text and the page count (the analyzing sheet shows `PAGE 1 OF 2`)."""
     try:
         with pdfplumber.open(io.BytesIO(data)) as pdf:
+            pages = len(pdf.pages)
             text = "\n".join(page.extract_text() or "" for page in pdf.pages)
     except Exception:
         # corrupt or unreadable PDF → surfaces as the 422 no-text error
-        return ""
-    return _normalise_glyphs(text)
+        return "", 0
+    return _normalise_glyphs(text), pages
 
 
 def _from_docx(data: bytes) -> str:
@@ -78,8 +80,21 @@ async def extract_resume(
     no page geometry to measure, so it gets `layout.TEMPLATE` — the reference
     resume's design.
     """
+    text, layout, _pages = await extract_document(resume, resume_text)
+    return text, layout
+
+
+async def extract_document(
+    resume: UploadFile | None, resume_text: str | None
+) -> tuple[str, dict, int]:
+    """As `extract_resume`, plus the page count the analyzing screen shows.
+
+    `pages` is 1 for formats with no page geometry (DOCX/TXT) and 0 when a PDF
+    could not be opened — the caller falls back rather than showing `PAGE 1 OF 0`.
+    """
     data = b""
     extension = ""
+    pages = 1
     if resume is not None and resume.filename:
         extension = os.path.splitext(resume.filename)[1].lower()
         if extension not in ALLOWED_EXTENSIONS:
@@ -97,7 +112,7 @@ async def extract_resume(
             raise HTTPException(status_code=413, detail=_SIZE_ERROR)
 
         if extension == ".pdf":
-            text = _from_pdf(data)
+            text, pages = _from_pdf(data)
         elif extension == ".docx":
             text = _from_docx(data)
         else:
@@ -111,4 +126,4 @@ async def extract_resume(
 
     if not text.strip():
         raise HTTPException(status_code=422, detail=_NO_TEXT_ERROR)
-    return text, layout_engine.profile(data or None, extension, text)
+    return text, layout_engine.profile(data or None, extension, text), pages

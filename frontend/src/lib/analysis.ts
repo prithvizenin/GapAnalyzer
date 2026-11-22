@@ -71,6 +71,26 @@ export interface AnalysisResult {
   diff_example: { original: string; suggested: string };
 }
 
+/** One run of a resume line on the analyzing screen's `ScanSheet`: plain text,
+ *  or a phrase the posting asks for (painted with the highlighter). */
+export interface ExcerptRun {
+  text: string;
+  highlight: boolean;
+}
+
+export type ExcerptLine = ExcerptRun[];
+
+/** A line of the analyzing screen while `POST /api/analyze` runs. */
+export interface Preview {
+  filename: string;
+  page_count: number;
+  word_count: number;
+  excerpt: ExcerptLine[];
+  tracked_skills: number;
+  matched_skills: number;
+  skills: string[];
+}
+
 /** Sample response (DESIGN_SYSTEM.md §6 sample data) shown until /upload POSTs
  *  a real one. `why` for the report's five (CI/CD, Docker, Kubernetes,
  *  System-Design, Leadership) is the copy-deck text; the rest are

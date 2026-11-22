@@ -160,6 +160,35 @@ class CompareRequest(BaseModel):
     job_descriptions: list[str]
 
 
+class ExcerptRun(BaseModel):
+    """One run of a resume line: plain text or a highlighted skill name."""
+
+    text: str
+    highlight: bool = False
+
+
+class PreviewResponse(BaseModel):
+    """`POST /api/preview` — what the analyzing screen shows while it waits.
+
+    Everything is measured, never invented: the resume's own text, its word and
+    page counts, the skills the *posting* asks for that this analyzer tracks,
+    and which of those already appear in the resume. It answers in extraction
+    time (no matching, no embeddings), so the screen can render a real excerpt
+    and real counters before the full analysis lands.
+    """
+
+    filename: str
+    page_count: int
+    word_count: int
+    # The resume lines shown on the sheet, pre-split into runs so the client
+    # paints the highlighted phrases without parsing text itself.
+    excerpt: list[list[ExcerptRun]] = Field(default_factory=list)
+    tracked_skills: int
+    matched_skills: int
+    # Tracked skills the posting names *and* the resume already contains.
+    skills: list[str] = Field(default_factory=list)
+
+
 class ComparePosting(BaseModel):
     """One ranked posting. `reason` is the "and why" the plan asks for.
 

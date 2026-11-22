@@ -1,7 +1,7 @@
 """Backend smoke test — the project's verification for the API (no pytest suite).
 
 Start the API first (cd backend && python main.py), then:  python smoke_test.py
-73 checks: contract shape + copy-deck strings on the happy paths (TXT upload,
+85 checks: contract shape + copy-deck strings on the happy paths (TXT upload,
 pasted text, real PDF, DOCX), the full error contract (400/413/422), the
 weeks 8–9 semantic layer (paraphrase promoted to semantic, distractor stays
 missing), the weeks 10–11 categorized suggestions, the improvement plan /
@@ -63,6 +63,10 @@ def check(name: str, cond: bool, info: str = "") -> None:
 
 def post(**kwargs) -> httpx.Response:
     return httpx.post(f"{BASE}/api/analyze", timeout=30, **kwargs)
+
+
+def preview(**kwargs) -> httpx.Response:
+    return httpx.post(f"{BASE}/api/preview", timeout=30, **kwargs)
 
 
 def main() -> int:
@@ -225,6 +229,103 @@ def main() -> int:
         data={"job_description": JD},
     )
     check("docx: 200", r.status_code == 200, f"{r.status_code} {r.text[:80]}")
+
+    # --- POST /api/preview (analyzing screen) ------------------------------
+    # Measured counts + a pre-split excerpt, no score. The same upload stream
+    # can only be read once, so each case builds its own request.
+    r = preview(
+        files={"resume": ("resume.txt", RESUME.encode(), "text/plain")},
+        data={"job_description": JD},
+    )
+    check("preview txt: 200", r.status_code == 200, str(r.status_code))
+    p = r.json()
+    check(
+        "preview: measured counts",
+        p["word_count"] == len(RESUME.split())
+        and p["tracked_skills"] > 0
+        and 0 < p["matched_skills"] <= p["tracked_skills"],
+        f"{p.get('word_count')} words / {p.get('tracked_skills')} tracked / {p.get('matched_skills')} matched",
+    )
+    check(
+        "preview: filename + pages",
+        p["filename"] == "resume.txt" and p["page_count"] == 1,
+        f"{p.get('filename')} / {p.get('page_count')}",
+    )
+    check(
+        "preview: no score leaked",
+        "match_score" not in p,
+        str(sorted(p.keys())),
+    )
+    runs = [run for line in p["excerpt"] for run in line]
+    check(
+        "preview: excerpt is pre-split runs",
+        bool(p["excerpt"])
+        and all(set(run.keys()) == {"text", "highlight"} for run in runs)
+        and all(isinstance(run["highlight"], bool) for run in runs),
+        f"{len(p['excerpt'])} lines / {len(runs)} runs",
+    )
+    highlighted = [run["text"] for run in runs if run["highlight"]]
+    check(
+        "preview: highlights only tracked skills",
+        bool(highlighted)
+        and all(name in p["skills"] for name in highlighted),
+        str(highlighted[:6]),
+    )
+
+    # A real PDF: the page count must come from the document, not a guess.
+    pdf_for_preview = (PROJECT_ROOT / "MiniProject_MidSem_Report.pdf").read_bytes()
+    r = preview(
+        files={"resume": ("resume.pdf", pdf_for_preview, "application/pdf")},
+        data={"job_description": JD},
+    )
+    check("preview pdf: 200", r.status_code == 200, f"{r.status_code} {r.text[:80]}")
+    if r.status_code == 200:
+        pp = r.json()
+        check(
+            "preview pdf: page count is measured",
+            pp["page_count"] >= 2,
+            f"{pp['page_count']} pages",
+        )
+
+    # Same error contract as /api/analyze (it calls the same extractor).
+    r = preview(
+        files={"resume": ("resume.exe", (tmp / "fake.exe").read_bytes(), "application/octet-stream")},
+        data={"job_description": JD},
+    )
+    check(
+        "preview 400 bad type",
+        r.status_code == 400
+        and r.json()["detail"] == "Unsupported file type — PDF, DOCX, or TXT only.",
+        f"{r.status_code} {r.text[:80]}",
+    )
+    r = preview(
+        files={"resume": ("blank.txt", (tmp / "blank.txt").read_bytes(), "text/plain")},
+        data={"job_description": JD},
+    )
+    check(
+        "preview 422 no text",
+        r.status_code == 422
+        and r.json()["detail"].startswith("No extractable text found"),
+        f"{r.status_code} {r.text[:80]}",
+    )
+    r = preview(
+        files={"resume": ("big.txt", (tmp / "big.txt").read_bytes(), "text/plain")},
+        data={"job_description": JD},
+    )
+    check(
+        "preview 413 too large",
+        r.status_code == 413 and r.json()["detail"] == "File too large — 5 MB max.",
+        f"{r.status_code} {r.text[:80]}",
+    )
+    r = preview(
+        files={"resume": ("resume.txt", RESUME.encode(), "text/plain")},
+        data={"job_description": "   "},
+    )
+    check(
+        "preview 422 empty JD",
+        r.status_code == 422 and r.json()["detail"] == "Job description is required.",
+        f"{r.status_code} {r.text[:80]}",
+    )
 
     # --- error contract ----------------------------------------------------
     r = post(

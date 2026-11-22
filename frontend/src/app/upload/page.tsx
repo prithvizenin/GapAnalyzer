@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { HandwrittenNote } from "@/components/ui/HandwrittenNote";
 import { AnalyzingPanel } from "@/components/upload/AnalyzingPanel";
-import type { AnalysisResult } from "@/lib/analysis";
+import type { AnalysisResult, Preview } from "@/lib/analysis";
 import { API_URL } from "@/lib/api";
 
 /** Client-side pre-checks mirroring the API contract (context.md §9):
@@ -41,7 +41,9 @@ export default function UploadPage() {
   const [jd, setJd] = useState("");
   const [phase, setPhase] = useState<"form" | "analyzing">("form");
   const [progress, setProgress] = useState(0);
+  const [preview, setPreview] = useState<Preview | null>(null);
   const handoffTimer = useRef<number | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const errRef = useRef<HTMLParagraphElement>(null);
 
@@ -131,17 +133,40 @@ export default function UploadPage() {
     if (!file || !jd.trim()) return;
     setError(null);
     setProgress(0);
+    setPreview(null);
     setPhase("analyzing");
     const startedAt = performance.now();
 
-    try {
-      const body = new FormData();
-      body.append("resume", file);
-      body.append("job_description", jd);
+    const controller = new AbortController();
+    abortRef.current = controller;
+    // Preview and analysis are the same upload: the preview only extracts, so
+    // it answers first and puts real counts on screen while the analysis runs.
+    const body = new FormData();
+    body.append("resume", file);
+    body.append("job_description", jd);
 
+    fetch(`${API_URL}/api/preview`, {
+      method: "POST",
+      body,
+      signal: controller.signal,
+    })
+      .then(async (res) =>
+        res.ok ? ((await res.json()) as Preview) : null
+      )
+      .then((data) => {
+        // An older API without /api/preview simply yields null and the panel
+        // keeps its honest in-progress copy.
+        if (data && typeof data.word_count === "number") setPreview(data);
+      })
+      .catch(() => {
+        /* preview is an enhancement — the analysis is what must succeed */
+      });
+
+    try {
       const res = await fetch(`${API_URL}/api/analyze`, {
         method: "POST",
         body,
+        signal: controller.signal,
       });
 
       let payload: unknown = null;
@@ -180,6 +205,8 @@ export default function UploadPage() {
         Math.max(0, remaining)
       );
     } catch (err) {
+      // A deliberate CANCEL is not an error — the form is already restored.
+      if (err instanceof DOMException && err.name === "AbortError") return;
       // Network failure → copy-deck connection line; API errors → `detail`.
       setError(
         err instanceof TypeError
@@ -192,13 +219,29 @@ export default function UploadPage() {
     }
   }
 
+  /** `CANCEL` on the analyzing screen — abort the request, restore the form
+   *  with the file and JD still in place so the user can retry. */
+  function handleCancel() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    if (handoffTimer.current) window.clearTimeout(handoffTimer.current);
+    handoffTimer.current = null;
+    setProgress(0);
+    setPreview(null);
+    setPhase("form");
+  }
+
   if (phase === "analyzing") {
     return (
       <>
-        <Nav step={1} />
+        <Nav step={2} />
         <PageShell>
           <div ref={root}>
-            <AnalyzingPanel progress={progress} />
+            <AnalyzingPanel
+              progress={progress}
+              preview={preview}
+              onCancel={handleCancel}
+            />
           </div>
         </PageShell>
       </>

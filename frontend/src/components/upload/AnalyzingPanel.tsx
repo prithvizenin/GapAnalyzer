@@ -1,19 +1,27 @@
+"use client";
+
 import { useRef } from "react";
-import { Sheet } from "@/components/ui/Sheet";
+import { Eyebrow, PageTitle } from "@/components/ui/PageShell";
+import { Button } from "@/components/ui/Button";
+import { HandwrittenNote } from "@/components/ui/HandwrittenNote";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { ScanSheet } from "@/components/upload/ScanSheet";
+import type { Preview } from "@/lib/analysis";
 import { cn } from "@/lib/cn";
 import { useMotion, gsap, EASE, T } from "@/lib/motion";
 
-const ITEMS = ["Extracting text", "Finding skills", "Scoring match"];
+/** Estimate for the whole pipeline, for the `ABOUT N SECONDS LEFT` line only.
+ *  The response is the real finish line — this never gates anything. */
+const ESTIMATE_SECONDS = 20;
 
+/** Red pen checkmark that draws itself when its row completes (§3.5). */
 function Checkbox({ done }: { done: boolean }) {
   const root = useRef<HTMLSpanElement>(null);
 
-  // Red pen checkmark draws itself the moment the row completes (§3.5).
   useMotion(
     root,
     () => {
-      const path = root.current?.querySelector<SVGPathElement>("path");
+      const path = root.current?.querySelector<SVGPathElement>(".js-check");
       if (done && path) {
         gsap.fromTo(
           path,
@@ -28,113 +36,203 @@ function Checkbox({ done }: { done: boolean }) {
   return (
     <span
       ref={root}
+      data-check={done ? "done" : "todo"}
       className={cn(
-        "relative grid h-7 w-7 shrink-0 place-items-center rounded-[2px] border-2 md:h-9 md:w-9",
+        "grid h-[26px] w-[26px] shrink-0 place-items-center border-2 md:h-[30px] md:w-[30px]",
         done ? "border-pen-red" : "border-ink/70"
       )}
     >
       {done && (
         <svg
           aria-hidden
-          viewBox="0 0 40 40"
-          className="absolute -left-2.5 -top-3 h-[calc(100%+26px)] w-[calc(100%+26px)] text-pen-red"
+          viewBox="0 0 24 24"
+          className="h-[22px] w-[22px] text-pen-red md:h-[26px] md:w-[26px]"
           fill="none"
           stroke="currentColor"
-          strokeWidth="3.2"
+          strokeWidth="3.4"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path strokeDasharray={52} d="M6 21 15.5 30.5 34 5" />
+          {/* Slightly overhanging, hand-drawn — it reads as a pen stroke. */}
+          <path className="js-check" strokeDasharray={52} d="M4 12.5 9.5 18.5 21 3" />
         </svg>
       )}
     </span>
   );
 }
 
+/** One checklist row: box, mono label, and the measured sub-line. */
+function Row({
+  label,
+  detail,
+  done,
+  last,
+}: {
+  label: string;
+  detail: React.ReactNode;
+  done: boolean;
+  last?: boolean;
+}) {
+  return (
+    <li
+      className={cn(
+        "flex items-start gap-3.5 py-4 md:gap-4 md:py-5",
+        !last && "border-b border-rule"
+      )}
+    >
+      <Checkbox done={done} />
+      <div className="min-w-0">
+        <p className="font-mono text-[13px] uppercase tracking-[0.14em] text-ink md:text-[14.5px]">
+          {label}
+        </p>
+        <p className="mt-1.5 font-mono text-[10.5px] uppercase tracking-[0.14em] text-graphite md:text-[11.5px]">
+          {detail}
+        </p>
+      </div>
+    </li>
+  );
+}
+
 /**
- * Screen 03 "Analyzing" — an in-page state of /upload (not a route).
- * Pen-checklist sheet per comps/03-analyzing.png: red checkmarks draw in as
- * `progress` advances; the last row carries the hairline ProgressBar.
- * Simulated until the backend contract (POST /api/analyze) is wired.
+ * Screen 03 "Analyzing" — an in-page state of `/upload` (not a route).
+ *
+ * `upload_screen.pdf` p1 (desktop) / p2 (phone). Desktop is two columns: the
+ * pen checklist on the left, the resume being read on the right. The phone
+ * stacks them, drops the desktop eyebrow's step row into the nav, and moves
+ * `CANCEL` into a sticky bottom bar beside the pen note.
+ *
+ * Every number here is measured by `POST /api/preview` — word count, page
+ * count, tracked and matched skills — so the screen never claims work that
+ * has not happened. `preview` is `null` until that call answers (or if it is
+ * unavailable), and the copy degrades to the honest in-progress state.
  */
-export function AnalyzingPanel({ progress }: { progress: number }) {
-  const done = [progress >= 25, progress >= 50, progress >= 100];
+export function AnalyzingPanel({
+  progress,
+  preview,
+  onCancel,
+}: {
+  progress: number;
+  preview: Preview | null;
+  onCancel: () => void;
+}) {
   const root = useRef<HTMLDivElement>(null);
 
+  const extractDone = progress >= 25;
+  const skillsDone = progress >= 50;
+  const done = [extractDone, skillsDone, false];
+
+  // Remaining wait, from the same pacing timer that drives `progress`. The
+  // label is only shown while there is something left to say.
+  const secondsLeft = preview
+    ? Math.max(1, Math.round(((100 - progress) / 100) * ESTIMATE_SECONDS))
+    : null;
+
+  const wordLine = preview
+    ? `${preview.word_count.toLocaleString("en-US")} words read`
+    : "reading the document";
+  const trackedLine = preview
+    ? `${preview.tracked_skills} skills tracked`
+    : "scanning for skills";
+
+  // p1 pairs the comparison with the remaining wait; p2 shows only the wait.
+  const waitText =
+    secondsLeft === null
+      ? "scoring the match"
+      : secondsLeft > 1
+        ? `about ${secondsLeft} seconds left`
+        : "about a second left";
+  const scoringLine = preview ? (
+    <>
+      <span className="hidden md:inline">
+        Comparing {preview.tracked_skills} skills ·{" "}
+      </span>
+      {waitText}
+    </>
+  ) : (
+    "comparing against the posting"
+  );
+
   // In-page state change (form → analyzing): same entrance, shorter.
-  useMotion(root, () => {
-    gsap.from(root.current, { y: 18, autoAlpha: 0, duration: T.enter, ease: EASE });
-  }, []);
+  useMotion(
+    root,
+    () => {
+      const tl = gsap.timeline({ defaults: { ease: EASE } });
+      tl.from(".js-an-head", { y: 12, autoAlpha: 0, duration: T.enter }, 0)
+        .from(".js-an-sheet", { y: 22, autoAlpha: 0, scale: 0.985, duration: 0.5 }, 0.16)
+        .from(".js-an-note", { y: 8, autoAlpha: 0, duration: 0.34 }, 0.36);
+    },
+    []
+  );
 
   return (
-    <div
-      ref={root}
-      className="mt-10 flex justify-center px-0 sm:px-6 md:mt-16"
-    >
-      <Sheet className="relative w-full max-w-[640px] px-7 py-8 md:px-12 md:py-16">
-        <ol role="status" aria-live="polite" className="relative z-10">
-          {ITEMS.map((label, i) => (
-            <li key={label}>
-              <div
-                className={cn(
-                  "flex items-center gap-4 md:gap-5",
-                  i > 0 && "pt-6 md:pt-10",
-                  i < 2 && "border-b border-rule pb-6 md:pb-10"
-                )}
-              >
-                <Checkbox done={done[i]} />
-                <span className="font-mono text-[15px] uppercase tracking-[0.1em] text-ink md:text-[18px]">
-                  {label}
-                </span>
-              </div>
-              {i === 2 && (
-                <ProgressBar
-                  value={progress}
-                  className="ml-[44px] mt-4 md:ml-[56px] md:mt-6"
-                />
-              )}
-            </li>
-          ))}
-        </ol>
+    <div ref={root}>
+      <div className="grid items-start gap-9 md:gap-10 lg:grid-cols-[1fr_0.92fr] lg:gap-14">
+        {/* Left: the work being done. DOM order is head → checklist → sheet,
+            which is exactly the phone's stacked order (p2). */}
+        <div className="js-an-head min-w-0">
+          <Eyebrow>
+            Analyzing <span className="text-pen-red">·</span> Step 3 of 3
+          </Eyebrow>
+          <PageTitle className="mt-4 max-w-[16ch] md:mt-5">
+            Reading your resume against the posting.
+          </PageTitle>
 
-        {/* Red pen lying across the corner — pen motif (comp 03) */}
-        <svg
-          aria-hidden
-          viewBox="0 0 240 56"
-          className="pointer-events-none absolute -right-3 bottom-6 z-20 w-36 rotate-[-45deg] md:-right-40 md:bottom-5 md:w-96"
-        >
-          <path d="M8 28 34 20v16Z" fill="var(--color-ink)" />
-          <rect
-            x="34"
-            y="16"
-            width="7"
-            height="24"
-            fill="var(--color-graphite)"
-          />
-          <rect
-            x="41"
-            y="12"
-            width="175"
-            height="32"
-            rx="16"
-            fill="var(--color-pen-red)"
-          />
-          <rect
-            x="70"
-            y="12"
-            width="7"
-            height="32"
-            fill="var(--color-graphite)"
-          />
-          <path
-            d="M192 16h16a6 6 0 0 1 6 6v8"
-            fill="none"
-            stroke="var(--color-graphite)"
-            strokeWidth="5"
-            strokeLinecap="round"
-          />
-        </svg>
-      </Sheet>
+          <ol
+            role="status"
+            aria-live="polite"
+            className="mt-7 border-t border-rule md:mt-9"
+          >
+            <Row label="Extracting text" detail={wordLine} done={done[0]} />
+            <Row label="Finding skills" detail={trackedLine} done={done[1]} />
+            <Row label="Scoring match" detail={scoringLine} done={false} last />
+
+            {/* p1 indents the bar to the label column (checkbox + gap) and
+                runs it to the column's right edge — it reads as the row's
+                meter, not a full-width rule. */}
+            <li className="py-4 pl-[40px] md:py-5 md:pl-[46px]">
+              <ProgressBar value={progress} pen />
+            </li>
+          </ol>
+
+          {/* Desktop CTA row (p1): hairline, then CANCEL + the pen note. */}
+          <div className="js-an-note mt-1 hidden items-center gap-6 border-t border-rule pt-5 md:flex">
+            <Button variant="secondary" size="sm" mono onClick={onCancel}>
+              Cancel
+            </Button>
+            <HandwrittenNote rotate={-2} className="text-[18px] md:text-[20px]">
+              First run can take a minute.
+            </HandwrittenNote>
+          </div>
+        </div>
+
+        <div className="min-w-0 lg:pt-3">
+          <div className="js-an-sheet">
+            <ScanSheet
+              filename={preview?.filename ?? "your resume"}
+              pageCount={preview?.page_count ?? 1}
+              excerpt={preview?.excerpt ?? []}
+              matched={preview?.matched_skills ?? 0}
+              tracked={preview?.tracked_skills ?? 0}
+            />
+          </div>
+
+          {/* Phone: the sticky bar below pairs the note with CANCEL (p2), so
+              the note is not repeated here. */}
+        </div>
+      </div>
+
+      {/* Phone: sticky bar pairs the note with CANCEL (p2). */}
+      <div
+        data-sticky-cta
+        className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-5 border-t border-rule bg-paper px-6 py-4 md:hidden"
+      >
+        <HandwrittenNote rotate={-2} className="text-[16px]">
+          First run can take a minute.
+        </HandwrittenNote>
+        <Button variant="secondary" size="sm" mono onClick={onCancel} className="shrink-0">
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }
