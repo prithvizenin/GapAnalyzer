@@ -16,6 +16,7 @@ venv/
 Thumbs.db
 
 # Scratch captures and probes (docs/screens/ is the published screenshot set)
+/tmp_preview/
 /*.jpg
 /*.jpeg
 /*.png

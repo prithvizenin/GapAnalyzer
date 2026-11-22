@@ -1,8 +1,11 @@
 import { cn } from "@/lib/cn";
 
 /**
- * DESIGN_SYSTEM.md §4 #6 — distressed RED circular rubber stamp with star
- * accents. Color is always red regardless of score; the number carries meaning.
+ * DESIGN_SYSTEM.md §4 #6 — distressed RED circular rubber stamp.
+ *
+ * Mockups 01/06: two hand-drawn rings (the outer one wobbles, as a real stamp
+ * does), the score in the display serif and `MATCH` in mono beneath it. Colour
+ * is always red — the number carries the meaning, never the hue.
  */
 export function StampScore({
   value,
@@ -14,14 +17,20 @@ export function StampScore({
   className?: string;
 }) {
   const sizes = {
-    sm: "w-24 h-24",
-    md: "w-36 h-36",
-    lg: "w-44 h-44",
+    sm: "w-[104px] h-[104px]",
+    md: "w-[150px] h-[150px]",
+    // Mockups 01 (desktop ~230px) / 04 (phone ~132px)
+    lg: "w-[132px] h-[132px] md:w-[230px] md:h-[230px]",
   };
   const numSizes = {
-    sm: "text-2xl",
-    md: "text-4xl",
-    lg: "text-5xl",
+    sm: "text-[30px]",
+    md: "text-[44px]",
+    lg: "text-[38px] md:text-[68px]",
+  };
+  const labelSizes = {
+    sm: "text-[9px]",
+    md: "text-[10px]",
+    lg: "text-[9px] md:text-[11px]",
   };
 
   return (
@@ -29,39 +38,45 @@ export function StampScore({
       role="img"
       aria-label={`${value} percent match`}
       className={cn(
-        "relative grid place-items-center rounded-full border-[3px] border-pen-red text-pen-red -rotate-6 select-none",
+        "relative grid shrink-0 select-none place-items-center text-pen-red",
         sizes[size],
         className
       )}
     >
-      {/* inner ring */}
-      <span
+      {/* Hand-drawn double ring — slightly irregular, like a rubber stamp. */}
+      <svg
         aria-hidden
-        className="absolute inset-[7px] rounded-full border border-pen-red/70"
-      />
-      {/* star accents */}
-      <span
-        aria-hidden
-        className="absolute top-2 left-1/2 -translate-x-1/2 text-[9px] leading-none"
+        viewBox="0 0 200 200"
+        className="absolute inset-0 h-full w-full -rotate-[4deg]"
+        fill="none"
+        stroke="currentColor"
       >
-        ★
-      </span>
-      <span
-        aria-hidden
-        className="absolute bottom-2 left-1/2 -translate-x-1/2 text-[9px] leading-none"
-      >
-        ★
-      </span>
-      <span className="flex flex-col items-center leading-none">
+        <path
+          d="M100 6.5c51 0 93 41.5 93 93.5 0 52.5-42 94-93.5 94C48 194 6 152 6 100 6 47.5 48.5 6.5 100 6.5Z"
+          strokeWidth="3"
+        />
+        <path
+          d="M100 17c45.8 0 83 37.4 83 83.5S145.8 184 100 184s-83-37.4-83-83.5S54.2 17 100 17Z"
+          strokeWidth="1.6"
+          opacity="0.75"
+        />
+      </svg>
+
+      <span className="relative flex flex-col items-center leading-none">
         <span
           className={cn(
-            "font-display font-normal tracking-tight",
+            "font-display font-normal tracking-[-0.01em]",
             numSizes[size]
           )}
         >
           {value}%
         </span>
-        <span className="font-mono uppercase tracking-[0.18em] mt-1 text-[10px] md:text-[11px]">
+        <span
+          className={cn(
+            "mt-1.5 font-mono uppercase tracking-[0.22em]",
+            labelSizes[size]
+          )}
+        >
           Match
         </span>
       </span>

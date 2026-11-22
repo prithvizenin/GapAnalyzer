@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { FileChip } from "@/components/ui/FileChip";
-import { useMotion, gsap, EASE } from "@/lib/motion";
 
 /**
  * DESIGN_SYSTEM.md §4 #3 — manila fill, dashed border, paperclip centered,
- * copy "Drag and drop your resume here or click to upload"; red border on
- * file-type error. Selected file shows as a FileChip inside the zone.
+ * copy "Drag and drop your resume here or click to upload" (mockup 02; the
+ * mobile comp shortens it to "Tap to upload a PDF, DOCX or TXT"); red dashed
+ * border on file-type error. The picked file and the error line render below
+ * the zone, in the owning sheet (mockup 02/07).
  */
 export function Dropzone({
   file,
@@ -18,25 +18,7 @@ export function Dropzone({
   onSelect: (file: File | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const errRef = useRef<HTMLParagraphElement>(null);
   const [dragging, setDragging] = useState(false);
-
-  // Feedback: a validation error rises into its slot under the dropzone.
-  useMotion(
-    rootRef,
-    () => {
-      if (error && errRef.current) {
-        gsap.from(errRef.current, {
-          y: 8,
-          autoAlpha: 0,
-          duration: 0.3,
-          ease: EASE,
-        });
-      }
-    },
-    [error]
-  );
 
   function pick() {
     inputRef.current?.click();
@@ -56,70 +38,63 @@ export function Dropzone({
   }
 
   return (
-    <>
-      <div
-        ref={rootRef}
-        role="button"
-        tabIndex={0}
-        aria-label="Upload your resume — drag and drop, or press Enter to browse"
-        onClick={pick}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            pick();
-          }
-        }}
-        onDragOver={(e) => {
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={
+        file
+          ? `Replace ${file.name} — drag and drop, or press Enter to browse`
+          : "Upload your resume — drag and drop, or press Enter to browse"
+      }
+      onClick={pick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={handleDrop}
-        className={cn(
-          "relative flex min-h-[300px] cursor-pointer flex-col items-center justify-center gap-6 rounded-[3px] border-2 border-dashed bg-manila px-6 py-10 text-center transition duration-150 md:min-h-[460px]",
-          error
-            ? "border-pen-red"
-            : dragging
-              ? "border-ink scale-[1.008] shadow-paper"
-              : "border-ink/60 hover:border-ink/80 hover:shadow-[0_2px_10px_rgba(28,26,23,0.08)]"
-        )}
-      >
-        <svg
-          aria-hidden
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="h-16 w-16 text-ink md:h-20 md:w-20"
-        >
-          <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-        </svg>
-
-        <p className="max-w-[300px] font-display text-[18px] leading-snug text-ink-soft md:text-[21px]">
-          Drag and drop your resume here or click to upload
-        </p>
-
-        {file && <FileChip file={file} onRemove={() => onSelect(null)} />}
-
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,.docx,.txt"
-          className="hidden"
-          onChange={handleInput}
-        />
-      </div>
-      {error && (
-        <p
-          ref={errRef}
-          role="alert"
-          className="mt-3 font-mono text-[12px] text-pen-red"
-        >
-          {error}
-        </p>
+          pick();
+        }
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+      className={cn(
+        "flex min-h-[168px] cursor-pointer flex-col items-center justify-center gap-3 rounded-[2px] border-2 border-dashed bg-manila px-5 py-8 text-center transition duration-150 md:min-h-[248px] md:gap-4",
+        error
+          ? "border-pen-red"
+          : dragging
+            ? "border-ink bg-manila/80 shadow-paper"
+            : "border-ink/55 hover:border-ink/75"
       )}
-    </>
+    >
+      <svg
+        aria-hidden
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-7 w-7 text-ink md:h-9 md:w-9"
+      >
+        <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+      </svg>
+
+      <p className="max-w-[34ch] text-[14px] leading-snug text-ink-soft md:text-[15.5px]">
+        <span className="md:hidden">Tap to upload a PDF, DOCX or TXT</span>
+        <span className="hidden md:inline">
+          Drag and drop your resume here or click to upload
+        </span>
+      </p>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,.docx,.txt"
+        className="hidden"
+        onChange={handleInput}
+      />
+    </div>
   );
 }

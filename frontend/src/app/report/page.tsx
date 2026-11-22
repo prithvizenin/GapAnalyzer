@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
-import { StepIndicator } from "@/components/ui/StepIndicator";
-import { NavWordmark } from "@/components/Nav";
+import { Nav } from "@/components/Nav";
+import { PageShell, PageTitle } from "@/components/ui/PageShell";
 import { useMotion, gsap, EASE, T } from "@/lib/motion";
 import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
@@ -49,7 +49,7 @@ export default function ReportPage() {
   /** Gemini key dialog (§4 #25): tailoring needs a key the install does not ship. */
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const [keyPrefill, setKeyPrefill] = useState("");
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -141,110 +141,109 @@ export default function ReportPage() {
   });
 
   return (
-    <main ref={root} className="mx-auto max-w-[1120px] px-6 md:px-12 pt-12 md:pt-16 pb-16 md:pb-24">
-      {/* Logo → landing (DESIGN_SYSTEM §5 — user addition, not in comp 05) */}
-      <div className="js-top mb-7 md:mb-9">
-        <NavWordmark />
-      </div>
+    <>
+      <Nav step={3} />
+      <PageShell>
+        <div ref={root}>
+          <header className="js-top">
+            <PageTitle>Missing skills</PageTitle>
+          </header>
 
-      <StepIndicator active={2} />
+          <div className="mt-6 grid gap-7 md:mt-8 md:grid-cols-2 md:gap-8">
+            {/* Left: missing skills sheet */}
+            <Sheet className="js-sheet p-6 md:p-8">
+              <ul className="space-y-7 md:space-y-8">
+                {items.map((s, i) => (
+                  <AnnotationItem
+                    key={s.skill}
+                    n={i + 1}
+                    /* chips keep the hyphen (SYSTEM-DESIGN), headings read as words */
+                    term={s.skill.replace(/-/g, " ")}
+                    why={s.why}
+                  />
+                ))}
+              </ul>
+            </Sheet>
 
-      <div className="mt-8 grid gap-7 md:mt-10 md:grid-cols-2 md:gap-8">
-        {/* Left: missing skills sheet */}
-        <Sheet className="js-sheet p-7 md:p-8">
-          <h1 className="font-display text-[26px] uppercase tracking-[0.02em] md:text-[32px]">
-            Missing skills
-          </h1>
-          <ul className="mt-7 space-y-7 md:mt-8 md:space-y-8">
-            {items.map((s, i) => (
-              <AnnotationItem
-                key={s.skill}
-                n={i + 1}
-                /* chips keep the hyphen (SYSTEM-DESIGN), headings read as words */
-                term={s.skill.replace(/-/g, " ")}
-                why={s.why}
-              />
-            ))}
-          </ul>
-        </Sheet>
+            {/* Right: suggestion → example diff → CTA */}
+            <div className="flex flex-col gap-7 md:gap-8">
+              {/* Weeks 10–11 — one card per gap category (the API returns at most
+                  three, strongest gap first); `meta` names the category it closes. */}
+              {data.recommendations.map((rec, i) => (
+                <SuggestionCard
+                  key={rec.skill}
+                  n={i + 1}
+                  text={rec.message}
+                  meta={CATEGORY_LABELS[rec.category]}
+                  className="js-reveal"
+                />
+              ))}
 
-        {/* Right: suggestion → example diff → CTA */}
-        <div className="flex flex-col gap-7 md:gap-8">
-          {/* Weeks 10–11 — one card per gap category (the API returns at most
-              three, strongest gap first); `meta` names the category it closes. */}
-          {data.recommendations.map((rec, i) => (
-            <SuggestionCard
-              key={rec.skill}
-              n={i + 1}
-              text={rec.message}
-              meta={CATEGORY_LABELS[rec.category]}
-              className="js-reveal"
-            />
-          ))}
+              <section className="js-reveal">
+                <h2 className={SUB_LABEL}>Example diff</h2>
+                <div className="mt-4">
+                  <DiffRow
+                    original={data.diff_example.original}
+                    suggested={data.diff_example.suggested}
+                  />
+                </div>
 
-          <section className="js-reveal">
-            <h2 className={SUB_LABEL}>Example diff</h2>
-            <div className="mt-4">
-              <DiffRow
-                original={data.diff_example.original}
-                suggested={data.diff_example.suggested}
-              />
+                <div className="js-reveal mt-7 max-w-[360px] border-t border-rule pt-7">
+                  {/* Week 12 entry point (user addition — comp 05 had only the
+                      download CTA): review the tailored resume next. Since the
+                      rewrite runs on Gemini and no shared key ships, this opens
+                      the key dialog (§4 #25) before /rewrite. */}
+                  <Button
+                    mono
+                    className="w-full"
+                    onClick={() => {
+                      setKeyPrefill(readApiKey());
+                      setKeyDialogOpen(true);
+                    }}
+                  >
+                    Tailor my resume
+                    <span aria-hidden>→</span>
+                  </Button>
+                  <Button
+                    mono
+                    variant="secondary"
+                    className="mt-3 w-full"
+                    onClick={downloadReport}
+                    disabled={downloading}
+                  >
+                    {downloading ? "Downloading…" : "Download report"}
+                    {!downloading && (
+                      <Download aria-hidden className="h-4 w-4" strokeWidth={1.5} />
+                    )}
+                  </Button>
+                  {downloadError && (
+                    <p
+                      role="alert"
+                      className="mt-3 font-mono text-[12px] text-pen-red"
+                    >
+                      {downloadError}
+                    </p>
+                  )}
+                </div>
+              </section>
             </div>
+          </div>
 
-            <div className="js-reveal mt-7 max-w-[360px] border-t border-rule pt-7">
-              {/* Week 12 entry point (user addition — comp 05 had only the
-                  download CTA): review the tailored resume next. Since the
-                  rewrite runs on Gemini and no shared key ships, this opens
-                  the key dialog (§4 #25) before /rewrite. */}
-              <Button
-                mono
-                className="w-full"
-                onClick={() => {
-                  setKeyPrefill(readApiKey());
-                  setKeyDialogOpen(true);
-                }}
-              >
-                Tailor my resume
-                <span aria-hidden>→</span>
-              </Button>
-              <Button
-                mono
-                variant="secondary"
-                className="mt-3 w-full"
-                onClick={downloadReport}
-                disabled={downloading}
-              >
-                {downloading ? "Downloading…" : "Download report"}
-                {!downloading && (
-                  <Download aria-hidden className="h-4 w-4" strokeWidth={1.5} />
-                )}
-              </Button>
-              {downloadError && (
-                <p
-                  role="alert"
-                  className="mt-3 font-mono text-[12px] text-pen-red"
-                >
-                  {downloadError}
-                </p>
-              )}
-            </div>
-          </section>
+          {/* Gemini key dialog — the key is stored for this tab and forwarded to
+              `POST /api/rewrite`; "continue without a key" travels with none and
+              lets the server's env key (or the labelled fallback) answer. */}
+          <ApiKeyDialog
+            open={keyDialogOpen}
+            initialKey={keyPrefill}
+            onClose={() => setKeyDialogOpen(false)}
+            onSubmit={(key) => {
+              saveApiKey(key);
+              setKeyDialogOpen(false);
+              router.push("/rewrite");
+            }}
+          />
         </div>
-      </div>
-
-      {/* Gemini key dialog — the key is stored for this tab and forwarded to
-          `POST /api/rewrite`; "continue without a key" travels with none and
-          lets the server's env key (or the labelled fallback) answer. */}
-      <ApiKeyDialog
-        open={keyDialogOpen}
-        initialKey={keyPrefill}
-        onClose={() => setKeyDialogOpen(false)}
-        onSubmit={(key) => {
-          saveApiKey(key);
-          setKeyDialogOpen(false);
-          router.push("/rewrite");
-        }}
-      />
-    </main>
+      </PageShell>
+    </>
   );
 }

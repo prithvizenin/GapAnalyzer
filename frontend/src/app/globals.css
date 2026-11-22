@@ -100,12 +100,30 @@ html.dark {
       transition-delay: 0ms !important;
     }
   }
+
+  /* Mobile screens with a sticky CTA footer (upload/results/rewrite) lift the
+     fixed ThemeToggle above it so the two never overlap (§4 #23). `!important`
+     is required: utilities outrank the base layer in Tailwind v4. */
+  @media (max-width: 767px) {
+    body:has([data-sticky-cta]) [data-theme-toggle] {
+      bottom: 5.75rem !important;
+    }
+    /* Two-row CTA bar (the 404's BACK TO HOME / ANALYZE MY RESUME pair,
+       custom404page p2) is taller — the toggle must clear both buttons. */
+    body:has([data-sticky-cta="double"]) [data-theme-toggle] {
+      bottom: 10.5rem !important;
+    }
+  }
 }
 
 /* Ruled notebook paper — JD textarea (DESIGN_SYSTEM.md §4 #2, comp 02).
    The red vertical margin line sits at 28px; text starts at 44px (pl-11).
    padding-top must equal the y-offset of the rules layer (16px) so text
-   baselines land on the rules. */
+   baselines land on the rules.
+   Rule tone is mockup 02's: a warm light hairline just above `--rule`
+   (pixel-sampled #e1dcd0 in the deck). The old 50%-graphite mix rendered
+   #c0bdb6 — visibly grey, which made the field read as a bordered table
+   instead of ruled paper. 92%-rule keeps the line visible but warm. */
 .ruled-paper {
   --ruled-lh: 32px;
   padding-top: 16px;
@@ -119,10 +137,33 @@ html.dark {
     repeating-linear-gradient(
       to bottom,
       transparent 0 calc(var(--ruled-lh) - 1px),
-      color-mix(in srgb, var(--color-rule) 50%, var(--color-graphite))
+      color-mix(in srgb, var(--color-rule) 92%, var(--color-graphite))
         calc(var(--ruled-lh) - 1px) var(--ruled-lh)
     );
   background-position: 0 0, 0 16px;
+  background-repeat: no-repeat;
+}
+
+/* Ruled slip on the 404 sheet (§4 #28) — the same notebook paper as the JD
+   field (warm `--rule` hairlines, red margin line), on a 30px rhythm. It sits
+   on `--paper-raised`, so the lines start at the very top edge and the big
+   `404` is centred over them. */
+.ruled-404 {
+  --ruled-404-lh: 30px;
+  background-image:
+    linear-gradient(
+      to right,
+      transparent 0 10px,
+      var(--color-pen-red) 10px 12px,
+      transparent 12px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 calc(var(--ruled-404-lh) - 1px),
+      color-mix(in srgb, var(--color-rule) 92%, var(--color-graphite))
+        calc(var(--ruled-404-lh) - 1px) var(--ruled-404-lh)
+    );
+  background-position: 0 0, 0 0;
   background-repeat: no-repeat;
 }
 

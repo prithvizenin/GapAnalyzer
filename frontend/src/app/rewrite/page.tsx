@@ -2,26 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
-import { NavWordmark } from "@/components/Nav";
-import { StepIndicator } from "@/components/ui/StepIndicator";
-import { Sheet, Paperclip } from "@/components/ui/Sheet";
+import { Nav } from "@/components/Nav";
+import { PageShell, PageTitle, Eyebrow } from "@/components/ui/PageShell";
+import { Sheet } from "@/components/ui/Sheet";
 import { Button } from "@/components/ui/Button";
 import { RewriteRow } from "@/components/ui/RewriteRow";
 import { TailoringPanel } from "@/components/rewrite/TailoringPanel";
-import { SuggestionCard } from "@/components/ui/SuggestionCard";
 import { useMotion, gsap, EASE, T } from "@/lib/motion";
 import { API_URL, readApiKey } from "@/lib/api";
-import { CATEGORY_LABELS } from "@/lib/analysis";
-import { cn } from "@/lib/cn";
+
 import type { ExportFormat, RewriteResult } from "@/lib/rewrite";
 
-const SHEET_TITLE =
-  "font-display text-[22px] uppercase tracking-[0.03em] md:text-[24px]";
-const SUB_LABEL =
-  "font-mono text-[11px] uppercase tracking-[0.12em] text-graphite";
-/** Per-row labels inside the side-by-side review (same weight as §4 #24). */
 const ROW_LABEL =
-  "font-mono text-[10px] uppercase tracking-[0.14em] text-graphite";
+  "font-mono text-[9.5px] uppercase tracking-[0.16em] text-graphite";
 
 // Copy deck (DESIGN_SYSTEM §6, week 12) — strings verbatim.
 const NO_SESSION = "Upload a resume and a job posting first.";
@@ -49,16 +42,16 @@ const FALLBACK_REASONS: Record<string, string> = {
 type Phase = "loading" | "ready" | "error" | "empty";
 
 /**
- * Week 12, point 1 — "tailored resume" review screen (no comp; user addition).
+ * Week 12, point 1 — "tailored resume" review screen (mockups 03 desktop /
+ * 08 mobile).
  *
  * Reads the handoff /upload stored (`resume_text` + `job_description`), asks
  * `POST /api/rewrite` for a guarded revision, and reviews the suggested
  * changes side by side with the original document (semester plan week 12,
  * bullet 3): one row per resume line — the rewrite preserves line count, so
- * each rewritten line sits beside the text it replaces — plus one RewriteRow
- * per changed line (carrying the model's note) and the gap drafts with their
- * placeholders intact. The downloads render the text on screen
- * (`POST /api/rewrite/export`) — the server stores nothing.
+ * each rewritten line sits beside the text it replaces. Gap drafts and the
+ * downloads sit in the right column; on mobile they stack and the DOCX/PDF
+ * pair becomes a sticky footer.
  */
 export default function RewritePage() {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -67,7 +60,7 @@ export default function RewritePage() {
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<ExportFormat | null>(null);
   const started = useRef(false);
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   /** Measured page format of the uploaded resume (backend/layout.py). */
   const resumeLayout = useRef<unknown>(null);
 
@@ -151,7 +144,7 @@ export default function RewritePage() {
           autoAlpha: 0,
           duration: T.sheet,
           ease: EASE,
-          scrollTrigger: { trigger: el, start: "top 88%", once: true },
+          scrollTrigger: { trigger: el, start: "top 92%", once: true },
         });
       });
       gsap.utils.toArray<HTMLElement>(".js-reveal").forEach((el) => {
@@ -160,7 +153,7 @@ export default function RewritePage() {
           autoAlpha: 0,
           duration: T.enter,
           ease: EASE,
-          scrollTrigger: { trigger: el, start: "top 92%", once: true },
+          scrollTrigger: { trigger: el, start: "top 95%", once: true },
         });
       });
     },
@@ -206,7 +199,6 @@ export default function RewritePage() {
     }
   }
 
-  const changed = data?.rewrites.filter((line) => line.changed) ?? [];
   const draftNote = data?.additions[0]?.note ?? "";
 
   // Week 12 bullet 3 — the whole document, original beside revised. The
@@ -215,6 +207,7 @@ export default function RewritePage() {
   // indexes come from the `L{n}` rewrite ids.
   const originalLines = original.split("\n");
   const revisedLines = data?.revised_resume.split("\n") ?? [];
+  const notesById = new Map((data?.rewrites ?? []).map((line) => [line.id, line.note]));
   const changedIndexes = new Set(
     (data?.rewrites ?? [])
       .filter((line) => line.changed)
@@ -227,206 +220,185 @@ export default function RewritePage() {
       original: originalLines[index] ?? "",
       revised: revisedLines[index] ?? "",
       changed: changedIndexes.has(index),
+      note: notesById.get(`L${index}`) ?? "",
     })
   );
 
+  const progressLine = data
+    ? `${data.stats.changed} of ${data.stats.candidates} lines rewritten`
+    : "";
+
   return (
-    <main
-      ref={root}
-      className="mx-auto max-w-[1120px] px-6 md:px-12 pt-12 md:pt-16 pb-16 md:pb-24"
-    >
-      <div className="js-top mb-7 md:mb-9">
-        <NavWordmark />
-      </div>
-
-      <StepIndicator active={2} />
-
-      <h1 className="mt-8 font-display text-[26px] uppercase tracking-[0.02em] md:mt-10 md:text-[32px]">
-        Tailored resume
-      </h1>
-
-      {phase === "loading" && <TailoringPanel />}
-
-      {phase === "empty" && (
-        <Sheet className="js-sheet mt-8 p-7 md:p-8">
-          <p className="font-mono text-[14px] leading-[1.6] text-ink-soft">
-            {NO_SESSION}
-          </p>
-          <Button href="/upload" mono className="mt-6">
-            Upload a resume
-          </Button>
-        </Sheet>
-      )}
-
-      {phase === "error" && error && (
-        <div className="js-sheet mt-8">
-          <p role="alert" className="font-mono text-[13px] text-pen-red">
-            {error}
-          </p>
-          <Button href="/upload" mono variant="secondary" className="mt-6">
-            Upload a resume
-          </Button>
-        </div>
-      )}
-
-      {phase === "ready" && data && (
-        <div className="mt-8 space-y-7 md:mt-10 md:space-y-8">
-          {/* Week 12 bullet 3 — the suggested changes reviewed side by side
-              with the original: one row per resume line, so a rewritten line
-              sits next to the text it replaces. Changed rows wear the §4 #24
-              green left rule; unchanged text stays graphite and collapses to
-              a single column below `md` (it would only repeat itself). */}
-          <Sheet className="js-sheet p-7 md:p-8">
-            <div className="flex items-center gap-3">
-              <Paperclip className="h-7 w-7 shrink-0 -rotate-12 text-graphite" />
-              <h2 className={SHEET_TITLE}>Side-by-side review</h2>
-            </div>
-
-            <div className="mt-5 border-t border-rule pt-5">
-              <p className={SUB_LABEL}>
-                {data.stats.changed} of {data.stats.candidates} lines rewritten
+    <>
+      <Nav step={3} />
+      <PageShell className="pb-28 md:pb-20">
+        <div ref={root}>
+          <header className="js-top flex flex-col gap-2 md:flex-row md:items-end md:justify-between md:gap-8">
+            <PageTitle>Tailored resume</PageTitle>
+            {phase === "ready" && (
+              <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-graphite md:pb-2 md:text-[11px]">
+                {progressLine}
               </p>
-              {data.mode === "fallback" && (
-                <>
-                  <p className="mt-3 font-mono text-[11.5px] leading-[1.6] text-pen-red">
-                    {FALLBACK_NOTE}
-                  </p>
-                  {data.reason && (
-                    <p className="mt-2 font-mono text-[11px] leading-[1.6] text-graphite">
-                      Reason:{" "}
-                      {FALLBACK_REASONS[data.reason] ?? data.reason}
+            )}
+          </header>
+
+          {phase === "loading" && <TailoringPanel />}
+
+          {phase === "empty" && (
+            <Sheet className="js-sheet mt-8 p-7 md:p-8">
+              <p className="font-mono text-[14px] leading-[1.6] text-ink-soft">
+                {NO_SESSION}
+              </p>
+              <Button href="/upload" mono className="mt-6">
+                Upload a resume
+              </Button>
+            </Sheet>
+          )}
+
+          {phase === "error" && error && (
+            <div className="js-sheet mt-8">
+              <p role="alert" className="font-mono text-[13px] text-pen-red">
+                {error}
+              </p>
+              <Button href="/upload" mono variant="secondary" className="mt-6">
+                Upload a resume
+              </Button>
+            </div>
+          )}
+
+          {phase === "ready" && data && (
+            <div className="mt-6 grid items-start gap-6 md:mt-8 md:grid-cols-[minmax(0,1fr)_300px] md:gap-7 lg:grid-cols-[minmax(0,1fr)_330px]">
+              {/* Left: the whole document, original beside revised */}
+              <Sheet className="js-sheet p-5 md:p-7">
+                <Eyebrow>Side-by-side review</Eyebrow>
+
+                {data.mode === "fallback" && (
+                  <div className="mt-4 border-l-2 border-pen-red pl-4">
+                    <p className="font-mono text-[11.5px] leading-[1.6] text-pen-red">
+                      {FALLBACK_NOTE}
                     </p>
-                  )}
-                </>
-              )}
-
-              <div className="mt-5 hidden grid-cols-2 gap-x-8 md:grid">
-                <p className={ROW_LABEL}>Original</p>
-                <p className={ROW_LABEL}>Revised</p>
-              </div>
-
-              <div className="mt-2 divide-y divide-rule">
-                {reviewRows.map((row) => (
-                  <div
-                    key={row.index}
-                    className={cn(
-                      "grid gap-1 py-2 md:grid-cols-2 md:gap-x-8",
-                      row.changed && "border-l-2 border-stamp-green pl-3 md:pl-4"
+                    {data.reason && (
+                      <p className="mt-1.5 font-mono text-[10.5px] leading-[1.6] text-graphite">
+                        Reason:{" "}
+                        {FALLBACK_REASONS[data.reason] ?? data.reason}
+                      </p>
                     )}
-                  >
-                    <div className={cn(!row.changed && "hidden md:block")}>
-                      {row.changed && (
-                        <p className={`${ROW_LABEL} md:hidden`}>Original</p>
-                      )}
-                      <pre className="whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.6] text-graphite">
-                        {row.original || "\u00a0"}
-                      </pre>
-                    </div>
-                    <div>
-                      {row.changed && (
-                        <p className={`${ROW_LABEL} md:hidden`}>Revised</p>
-                      )}
-                      <pre
-                        className={cn(
-                          "whitespace-pre-wrap break-words font-mono text-[12.5px] leading-[1.6]",
-                          row.changed ? "text-ink" : "text-graphite"
-                        )}
-                      >
-                        {row.revised || "\u00a0"}
-                      </pre>
-                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          </Sheet>
-
-          <div className="grid gap-7 md:grid-cols-2 md:gap-8">
-            {/* Left: changed lines, with the model's note per line */}
-            <section className="js-reveal">
-              <h2 className={SUB_LABEL}>Changed lines</h2>
-              <div className="mt-4 space-y-4">
-                {changed.length === 0 ? (
-                  <p className="font-mono text-[13px] uppercase tracking-[0.1em] text-graphite">
-                    No lines needed changing
-                  </p>
-                ) : (
-                  changed.map((line) => (
-                    <RewriteRow
-                      key={line.id}
-                      original={line.original}
-                      revised={line.revised}
-                      note={line.note}
-                    />
-                  ))
                 )}
-              </div>
-            </section>
 
-            {/* Right: gap drafts → downloads */}
-            <div className="flex flex-col gap-7 md:gap-8">
-              {data.additions.length > 0 && (
-                <section className="js-reveal">
-                  <h2 className={SUB_LABEL}>Gap drafts</h2>
-                  {draftNote && (
-                    <p className="mt-2 font-mono text-[11.5px] leading-[1.6] text-graphite">
-                      {draftNote}
+                <div className="mt-5 hidden grid-cols-2 md:grid">
+                  <p className={ROW_LABEL}>Original</p>
+                  <p className={`${ROW_LABEL} pl-4`}>Revised</p>
+                </div>
+
+                <div className="mt-2 space-y-2 md:space-y-2.5">
+                  {reviewRows.map((row) => (
+                    <RewriteRow
+                      key={row.index}
+                      original={row.original}
+                      revised={row.revised}
+                      changed={row.changed}
+                      note={row.note}
+                    />
+                  ))}
+                </div>
+              </Sheet>
+
+              {/* Right: gap drafts then downloads (mockup 03) */}
+              <div className="flex flex-col gap-6 md:sticky md:top-6 md:gap-7">
+                {data.additions.length > 0 ? (
+                  <Sheet className="js-reveal p-5 md:p-6">
+                    <Eyebrow>Gap drafts</Eyebrow>
+                    <div className="mt-4 space-y-5">
+                      {data.additions.map((addition) => (
+                        <div
+                          key={addition.skill}
+                          className="border-l-2 border-pen-red pl-4"
+                        >
+                          <p className="font-mono text-[12.5px] leading-[1.7] text-ink md:text-[13px]">
+                            {addition.draft}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {draftNote && (
+                      <p className="mt-4 font-mono text-[10.5px] leading-[1.6] text-graphite">
+                        {draftNote}
+                      </p>
+                    )}
+                  </Sheet>
+                ) : (
+                  <Sheet className="js-reveal p-5 md:p-6">
+                    <Eyebrow>Gap drafts</Eyebrow>
+                    <p className="mt-4 font-mono text-[10.5px] uppercase tracking-[0.12em] text-graphite">
+                      No gaps drafted
+                    </p>
+                  </Sheet>
+                )}
+
+                <Sheet className="js-reveal hidden p-5 md:block md:p-6">
+                  <Eyebrow>Download</Eyebrow>
+                  <div className="mt-4 grid gap-2.5">
+                    <Button
+                      mono
+                      className="w-full"
+                      onClick={() => download("docx")}
+                      disabled={downloading !== null}
+                    >
+                      Download DOCX
+                    </Button>
+                    <Button
+                      mono
+                      variant="secondary"
+                      className="w-full"
+                      onClick={() => download("pdf")}
+                      disabled={downloading !== null}
+                    >
+                      Download PDF
+                    </Button>
+                  </div>
+                  {error && (
+                    <p
+                      role="alert"
+                      className="mt-3 font-mono text-[11px] leading-[1.6] text-pen-red"
+                    >
+                      {error}
                     </p>
                   )}
-                  <div className="mt-4 space-y-4">
-                    {data.additions.map((addition, i) => (
-                      <SuggestionCard
-                        key={addition.skill}
-                        n={i + 1}
-                        text={addition.draft}
-                        meta={CATEGORY_LABELS[addition.category]}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              <div className="js-reveal border-t border-rule pt-7">
-                <h2 className={SUB_LABEL}>Download</h2>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Button
-                    mono
-                    className="w-full"
-                    onClick={() => download("docx")}
-                    disabled={downloading !== null}
-                  >
-                    Download DOCX
-                    <Download
-                      aria-hidden
-                      className="h-4 w-4"
-                      strokeWidth={1.5}
-                    />
-                  </Button>
-                  <Button
-                    mono
-                    variant="secondary"
-                    className="w-full"
-                    onClick={() => download("pdf")}
-                    disabled={downloading !== null}
-                  >
-                    Download PDF
-                    <Download
-                      aria-hidden
-                      className="h-4 w-4"
-                      strokeWidth={1.5}
-                    />
-                  </Button>
-                </div>
-                {error && (
-                  <p role="alert" className="mt-3 font-mono text-[12px] text-pen-red">
-                    {error}
-                  </p>
-                )}
+                </Sheet>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Mobile: sticky download pair (mockup 08) */}
+          {phase === "ready" && data && (
+            <div
+            data-sticky-cta
+            className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-paper px-5 py-4 md:hidden"
+          >
+              <div className="grid grid-cols-2 gap-2.5">
+                <Button
+                  mono
+                  className="w-full"
+                  onClick={() => download("docx")}
+                  disabled={downloading !== null}
+                >
+                  DOCX
+                </Button>
+                <Button
+                  mono
+                  variant="secondary"
+                  className="w-full"
+                  onClick={() => download("pdf")}
+                  disabled={downloading !== null}
+                >
+                  PDF
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </main>
+      </PageShell>
+    </>
   );
 }

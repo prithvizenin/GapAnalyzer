@@ -1,10 +1,10 @@
 import { cn } from "@/lib/cn";
 
 /**
- * DESIGN_SYSTEM.md §4 #9 — mono label above, white track + hairline border +
- * ink fill, mono % at right (comp 04: Technical 80 / Tools 60 / Soft skills 45).
- * Values 0–100. The fill carries `data-bar` — the GSAP ink-fill tween
- * (scaleX from 0, left origin) lives in the results timeline (§3.5).
+ * DESIGN_SYSTEM.md §4 #9 — mono label above a thin track with an ink fill and
+ * the mono percentage at the right (mockups 01/04: Technical 80 / Tools 60 /
+ * Soft skills 45). Values 0–100. The fill carries `data-bar` — the GSAP
+ * ink-fill tween (scaleX from 0, left origin) lives in the results timeline.
  */
 export function CategoryBar({
   label,
@@ -19,20 +19,20 @@ export function CategoryBar({
 
   return (
     <div className={cn(className)}>
-      <p className="font-mono text-[13px] uppercase tracking-[0.12em] text-ink md:text-[15px]">
-        {label}
-      </p>
-      <div className="mt-2 flex items-center gap-4 md:gap-5">
-        <div className="h-3 flex-1 border border-rule bg-paper-raised md:h-3.5">
-          <div
-            data-bar
-            className="h-full bg-ink"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <span className="w-9 shrink-0 text-right font-mono text-[13px] md:text-[14px]">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink md:text-[11px]">
+          {label}
+        </p>
+        <span className="shrink-0 font-mono text-[10px] tabular-nums text-ink md:text-[11px]">
           {pct}%
         </span>
+      </div>
+      <div className="mt-1.5 h-[5px] border border-rule bg-paper-raised md:h-[6px]">
+        <div
+          data-bar
+          className="h-full bg-ink"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );

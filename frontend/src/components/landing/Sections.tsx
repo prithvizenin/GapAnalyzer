@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-import { Sheet } from "@/components/ui/Sheet";
 import { useMotion, gsap, EASE, T } from "@/lib/motion";
 
 const STEPS = [
@@ -30,12 +29,12 @@ export function StepsBand() {
       id="how-it-works"
       className="border-y border-rule bg-paper"
     >
-      <div className="mx-auto max-w-[1120px] px-6 md:px-12 py-7">
-        <ol className="flex flex-wrap items-center justify-center gap-x-5 gap-y-3 font-mono text-[12px] md:text-[13px] uppercase tracking-[0.14em]">
+      <div className="mx-auto max-w-[1120px] px-6 py-6 md:px-12 md:py-7">
+        <ol className="flex flex-wrap items-center gap-x-4 gap-y-3 font-mono text-[11px] uppercase tracking-[0.16em] md:gap-x-6 md:text-[12px]">
           {STEPS.map((step, i) => (
-            <li key={step.n} className="flex items-center gap-5">
+            <li key={step.n} className="flex items-center gap-4 md:gap-6">
               <span className="flex items-baseline gap-2">
-                <span className="text-pen-red">{step.n}</span>
+                <span className="text-graphite">{step.n}</span>
                 <span className="text-ink">{step.label}</span>
               </span>
               {i < STEPS.length - 1 && (
@@ -52,46 +51,20 @@ export function StepsBand() {
 }
 
 const FEATURES = [
-  {
-    title: "AI-powered analysis",
-    body: "Get precise, contextual feedback in seconds.",
-    icon: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </>
-    ),
-  },
+  { title: "AI-powered analysis", body: "Precise, contextual feedback in seconds." },
   {
     title: "Detailed gap report",
     body: "See what's missing, why it matters, and how to fix it.",
-    icon: (
-      <>
-        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
-        <path d="M14 3v5h5M9 13h6M9 17h4" />
-      </>
-    ),
   },
-  {
-    title: "Actionable next steps",
-    body: "Get tailored tips to close the gap and stand out.",
-    icon: (
-      <>
-        <circle cx="12" cy="12" r="9" />
-        <circle cx="12" cy="12" r="5" />
-        <circle cx="12" cy="12" r="1.5" />
-      </>
-    ),
-  },
+  { title: "Actionable next steps", body: "Tailored tips to close the gap." },
   {
     title: "Apply with confidence",
-    body: "Build a resume that gets you interviews.",
-    icon: <path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12z" />,
+    body: "Rewrites reuse your own facts. Nothing is invented.",
   },
 ];
 
-/** Copy deck FeatureRow — 4 columns split by hairlines (from comp 01).
- *  Columns cascade in together when the row enters view (§3.5). */
+/** Copy deck FeatureRow (mockups 05/06) — 4 hairline-split columns, mono caps
+ *  title over a short line, no icons. Columns cascade in on scroll (§3.5). */
 export function FeatureRow() {
   const root = useRef<HTMLElement>(null);
   useMotion(root, () => {
@@ -108,34 +81,20 @@ export function FeatureRow() {
   return (
     <section
       ref={root}
-      className="mx-auto max-w-[1120px] px-6 md:px-12 pb-20 md:pb-28"
+      className="mx-auto max-w-[1120px] px-6 pb-16 md:px-12 md:pb-24"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 border-t border-rule">
+      <div className="grid grid-cols-1 border-t border-rule sm:grid-cols-2 lg:grid-cols-4">
         {FEATURES.map((feature, i) => (
           <div
             key={feature.title}
-            className={`js-feat px-0 sm:px-7 py-8 sm:border-l border-rule ${
-              i === 0 ? "sm:border-l-0" : ""
-            } ${i < FEATURES.length - 1 ? "border-b sm:border-b-0" : ""}`}
+            className={`js-feat py-6 sm:px-7 sm:py-7 lg:border-l lg:border-rule ${
+              i === 0 ? "lg:border-l-0" : ""
+            } ${i < FEATURES.length - 1 ? "border-b border-rule sm:border-b-0" : ""}`}
           >
-            <svg
-              aria-hidden
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="text-ink"
-            >
-              {feature.icon}
-            </svg>
-            <h3 className="font-mono text-[12px] uppercase tracking-[0.1em] mt-4 mb-2">
+            <h3 className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-ink">
               {feature.title}
             </h3>
-            <p className="text-[14px] leading-relaxed text-ink-soft">
+            <p className="mt-2 text-[14px] leading-relaxed text-ink-soft">
               {feature.body}
             </p>
           </div>

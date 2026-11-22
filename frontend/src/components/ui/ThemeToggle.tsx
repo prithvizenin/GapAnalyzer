@@ -137,6 +137,7 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={label}
       title={label}
+      data-theme-toggle
       className="fixed right-5 bottom-5 z-[70] grid h-11 w-11 place-items-center rounded-[3px] border border-rule bg-paper-raised text-ink-soft shadow-paper transition-[color,border-color,background-color,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:text-ink active:scale-[0.94]"
     >
       {/* Stacked icons crossfade through a quarter turn — the only `dark:`

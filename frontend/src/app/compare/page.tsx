@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { NavWordmark } from "@/components/Nav";
-import { StepIndicator } from "@/components/ui/StepIndicator";
+import { Nav } from "@/components/Nav";
+import { PageShell, PageTitle } from "@/components/ui/PageShell";
 import { Sheet } from "@/components/ui/Sheet";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
@@ -49,7 +49,7 @@ export default function ComparePage() {
   const [data, setData] = useState<CompareResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const loaded = useRef(false);
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (loaded.current) return; // StrictMode double-mount guard
@@ -170,28 +170,23 @@ export default function ComparePage() {
   }
 
   return (
-    <main
-      ref={root}
-      className="mx-auto max-w-[1120px] px-6 md:px-12 pt-12 md:pt-16 pb-16 md:pb-24"
-    >
-      <div className="js-top mb-7 md:mb-9">
-        <NavWordmark />
-      </div>
-
-      <StepIndicator active={2} />
-
-      <h1 className="mt-8 font-display text-[26px] uppercase tracking-[0.02em] md:mt-10 md:text-[32px]">
-        Compare postings
-      </h1>
-
-      {resume && (
-        <div className="mt-5">
-          <p className={SUB_LABEL}>Using this resume</p>
-          <p className="mt-1 truncate font-mono text-[13px] text-ink-soft">
-            {resumeLine}
-          </p>
-        </div>
-      )}
+    <>
+      <Nav step={3} />
+      <PageShell>
+        <div ref={root}>
+          <header className="js-top flex flex-col gap-2 md:flex-row md:items-end md:justify-between md:gap-8">
+            <PageTitle>Compare postings</PageTitle>
+            {resumeLine && (
+              <div className="min-w-0 md:pb-2 md:text-right">
+                <p className="font-mono text-[9.5px] uppercase tracking-[0.16em] text-graphite">
+                  Using this resume
+                </p>
+                <p className="mt-1 truncate font-mono text-[11px] text-ink-soft">
+                  {resumeLine}
+                </p>
+              </div>
+            )}
+          </header>
 
       {phase === "empty" && (
         <Sheet className="js-sheet mt-8 p-7 md:p-8">
@@ -359,6 +354,8 @@ export default function ComparePage() {
           </div>
         </section>
       )}
-    </main>
+        </div>
+      </PageShell>
+    </>
   );
 }

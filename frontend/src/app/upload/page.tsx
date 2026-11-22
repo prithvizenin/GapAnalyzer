@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMotion, gsap, EASE, T } from "@/lib/motion";
 import { useRouter } from "next/navigation";
-import { StepIndicator } from "@/components/ui/StepIndicator";
+import { Nav } from "@/components/Nav";
+import { PageShell, PageTitle, Eyebrow } from "@/components/ui/PageShell";
 import { Sheet } from "@/components/ui/Sheet";
 import { Dropzone } from "@/components/ui/Dropzone";
+import { FileChip } from "@/components/ui/FileChip";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
+import { HandwrittenNote } from "@/components/ui/HandwrittenNote";
 import { AnalyzingPanel } from "@/components/upload/AnalyzingPanel";
 import type { AnalysisResult } from "@/lib/analysis";
 import { API_URL } from "@/lib/api";
@@ -28,11 +31,9 @@ const CONNECTION_ERROR =
 const JD_PLACEHOLDER =
   "We are looking for a Frontend Developer with strong React skills, experience in building responsive web applications, and a solid understanding of modern JavaScript, HTML, and CSS.";
 
-/** Screen 02 (upload / paste) from comps/02-upload.png, plus the in-page
- *  analyzing state (screen 03, comps/03-analyzing.png). No Nav per
- *  DESIGN_SYSTEM §5's component list for this screen.
- *  Submit runs the real pipeline: POST /api/analyze → sessionStorage
- *  ["analysis"] → /results (both results screens read that key). */
+/** Mockups 02 (desktop) / 07 (mobile): the two documents side by side,
+ *  sentence-case title, sticky full-width CTA on mobile. Submit runs the real
+ *  pipeline: POST /api/analyze → sessionStorage ["analysis"] → /results. */
 export default function UploadPage() {
   const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
@@ -41,7 +42,8 @@ export default function UploadPage() {
   const [phase, setPhase] = useState<"form" | "analyzing">("form");
   const [progress, setProgress] = useState(0);
   const handoffTimer = useRef<number | null>(null);
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
+  const errRef = useRef<HTMLParagraphElement>(null);
 
   // Scroll reveals for the form sheets + CTA (§3.5). Re-runs on phase flips
   // so returning from analyzing re-enters the form; panel/steps self-animate.
@@ -53,9 +55,9 @@ export default function UploadPage() {
           y: 18,
           autoAlpha: 0,
           duration: T.sheet,
-          delay: i * 0.1,
+          delay: i * 0.08,
           ease: EASE,
-          scrollTrigger: { trigger: el, start: "top 88%", once: true },
+          scrollTrigger: { trigger: el, start: "top 92%", once: true },
         });
       });
       gsap.utils.toArray<HTMLElement>(".js-reveal").forEach((el) => {
@@ -64,11 +66,22 @@ export default function UploadPage() {
           autoAlpha: 0,
           duration: T.enter,
           ease: EASE,
-          scrollTrigger: { trigger: el, start: "top 92%", once: true },
+          scrollTrigger: { trigger: el, start: "top 95%", once: true },
         });
       });
     },
     [phase]
+  );
+
+  // A validation/API error rises into its slot under the dropzone.
+  useMotion(
+    root,
+    () => {
+      if (error && errRef.current) {
+        gsap.from(errRef.current, { y: 8, autoAlpha: 0, duration: 0.3, ease: EASE });
+      }
+    },
+    [error]
   );
 
   // Checklist progress — visual pacing for the real request (rows check at
@@ -181,59 +194,100 @@ export default function UploadPage() {
 
   if (phase === "analyzing") {
     return (
-      <main ref={root} className="mx-auto max-w-[1120px] px-6 md:px-12 pt-12 md:pt-16 pb-16 md:pb-24">
-        <StepIndicator active={1} />
-        <AnalyzingPanel progress={progress} />
-      </main>
+      <>
+        <Nav step={1} />
+        <PageShell>
+          <div ref={root}>
+            <AnalyzingPanel progress={progress} />
+          </div>
+        </PageShell>
+      </>
     );
   }
 
   const valid = Boolean(file) && jd.trim().length > 0;
 
   return (
-    <main ref={root} className="mx-auto max-w-[1120px] px-6 md:px-12 pt-12 md:pt-16 pb-16 md:pb-24">
-      <StepIndicator active={0} />
+    <>
+      <Nav step={1} />
+      <PageShell className="pb-28 md:pb-20">
+        <div ref={root}>
+          <header className="max-w-[640px]">
+            <PageTitle>Put the two documents side by side.</PageTitle>
+            <p className="mt-3 max-w-[58ch] text-[15px] leading-relaxed text-ink-soft md:text-[16px]">
+              PDF, DOCX or TXT up to 5 MB, or paste the text. Nothing is stored.
+            </p>
+          </header>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-8 grid items-start gap-6 md:mt-10 md:grid-cols-2 md:gap-7"
-      >
-        <Sheet className="js-sheet p-7 md:p-9">
-          <h1 className="mb-6 font-display text-[22px] uppercase tracking-[0.03em] md:text-[24px]">
-            Your resume
-          </h1>
-          <Dropzone file={file} error={error} onSelect={handleFile} />
-        </Sheet>
+          <form onSubmit={handleSubmit} className="mt-8 md:mt-10">
+            <div className="grid items-start gap-5 md:grid-cols-2 md:gap-7">
+              <Sheet className="js-sheet p-5 md:p-7">
+                <Eyebrow>Your resume</Eyebrow>
+                <div className="mt-4">
+                  <Dropzone file={file} error={error} onSelect={handleFile} />
+                  {file && (
+                    <div className="mt-3">
+                      <FileChip file={file} onRemove={() => handleFile(null)} />
+                    </div>
+                  )}
+                  {error && (
+                    <p
+                      ref={errRef}
+                      role="alert"
+                      className="mt-3 font-mono text-[10.5px] uppercase leading-[1.6] tracking-[0.1em] text-pen-red md:text-[11px]"
+                    >
+                      {error}
+                    </p>
+                  )}
+                </div>
+              </Sheet>
 
-        <Sheet className="js-sheet p-7 md:p-9">
-          <label
-            htmlFor="jd"
-            className="mb-6 block font-display text-[22px] uppercase tracking-[0.03em] md:text-[24px]"
-          >
-            Job description
-          </label>
-          <Textarea
-            id="jd"
-            ruled
-            rows={13}
-            value={jd}
-            onChange={(e) => setJd(e.target.value)}
-            placeholder={JD_PLACEHOLDER}
-            aria-required
-          />
-        </Sheet>
+              <Sheet className="js-sheet p-5 md:p-7">
+                <label htmlFor="jd">
+                  <Eyebrow>Job description</Eyebrow>
+                </label>
+                <div className="mt-4">
+                  <Textarea
+                    id="jd"
+                    ruled
+                    rows={8}
+                    value={jd}
+                    onChange={(e) => setJd(e.target.value)}
+                    placeholder={JD_PLACEHOLDER}
+                    aria-required
+                    className="min-h-[168px] md:min-h-[248px]"
+                  />
+                </div>
+              </Sheet>
+            </div>
 
-        <div className="js-reveal flex justify-center md:col-span-2 md:mt-4">
-          <Button
-            type="submit"
-            mono
-            disabled={!valid}
-            className="w-full px-10 sm:min-w-[310px] sm:w-auto md:px-14"
-          >
-            Analyze the gap
-          </Button>
+            {/* Desktop CTA row: button + the one handwritten line (mockup 02) */}
+            <div className="js-reveal hidden items-center gap-6 md:col-span-2 md:mt-8 md:flex">
+              <Button
+                type="submit"
+                mono
+                disabled={!valid}
+                className="min-w-[240px] px-10"
+              >
+                Analyze the gap
+              </Button>
+              <HandwrittenNote rotate={-2} className="text-[18px] md:text-[20px]">
+                First run can take a minute.
+              </HandwrittenNote>
+            </div>
+
+            {/* Mobile: sticky full-width CTA (mockup 07) */}
+            <div
+              data-sticky-cta
+              className="fixed inset-x-0 bottom-0 z-30 border-t border-rule bg-paper px-6 py-4 md:hidden"
+            >
+              <Button type="submit" mono disabled={!valid} className="w-full">
+                Analyze the gap
+              </Button>
+            </div>
+          </form>
         </div>
-      </form>
-    </main>
+      </PageShell>
+    </>
   );
 }
