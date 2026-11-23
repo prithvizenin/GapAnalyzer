@@ -20,7 +20,9 @@ import {
 } from "@/lib/analysis";
 import { API_URL, readApiKey, saveApiKey } from "@/lib/api";
 
-/** Copy deck (DESIGN_SYSTEM §6) fixes screen 05's list to these five, in order. */
+/** Copy deck (DESIGN_SYSTEM §6) fixes screen 05's *sample* list to these five,
+ *  in order. Only applied when a payload actually contains all five — a real
+ *  resume/posting pair almost never does, and the sheet must never go blank. */
 const REPORT_SKILLS = [
   "CI/CD",
   "Docker",
@@ -28,6 +30,9 @@ const REPORT_SKILLS = [
   "System-Design",
   "Leadership",
 ];
+
+/** Screen 05 lists the five most important gaps (comp 05: numbered 1-5). */
+const REPORT_LIMIT = 5;
 
 const SUB_LABEL =
   "font-mono text-[13px] uppercase tracking-[0.14em] text-ink md:text-[14px]";
@@ -133,12 +138,28 @@ export default function ReportPage() {
     }
   }
 
-  const items = REPORT_SKILLS.flatMap((name) => {
+  /**
+   * Screen 05 lists the five most important gaps. The API already returns
+   * `missing_skills` sorted by mention count (strongest gap first), so a real
+   * payload just takes the head of that list. The copy deck's fixed five are
+   * used only when the payload is the sample report, which contains all five.
+   *
+   * Filtering a *real* payload against that fixed list left the sheet empty
+   * whenever a posting did not ask for CI/CD, Docker, Kubernetes, System-Design
+   * and Leadership — the suggestions beside it still rendered, since they are
+   * built from the same data without a filter.
+   */
+  const curated = REPORT_SKILLS.flatMap((name) => {
     const found: MissingSkill | undefined = data.missing_skills.find(
       (s) => s.skill === name
     );
     return found ? [found] : [];
   });
+
+  const items =
+    curated.length === REPORT_SKILLS.length
+      ? curated
+      : data.missing_skills.slice(0, REPORT_LIMIT);
 
   return (
     <>
@@ -152,17 +173,23 @@ export default function ReportPage() {
           <div className="mt-6 grid gap-7 md:mt-8 md:grid-cols-2 md:gap-8">
             {/* Left: missing skills sheet */}
             <Sheet className="js-sheet p-6 md:p-8">
-              <ul className="space-y-7 md:space-y-8">
-                {items.map((s, i) => (
-                  <AnnotationItem
-                    key={s.skill}
-                    n={i + 1}
-                    /* chips keep the hyphen (SYSTEM-DESIGN), headings read as words */
-                    term={s.skill.replace(/-/g, " ")}
-                    why={s.why}
-                  />
-                ))}
-              </ul>
+              {items.length > 0 ? (
+                <ul className="space-y-7 md:space-y-8">
+                  {items.map((s, i) => (
+                    <AnnotationItem
+                      key={s.skill}
+                      n={i + 1}
+                      /* chips keep the hyphen (SYSTEM-DESIGN), headings read as words */
+                      term={s.skill.replace(/-/g, " ")}
+                      why={s.why}
+                    />
+                  ))}
+                </ul>
+              ) : (
+                <p className="font-mono text-[12px] uppercase tracking-[0.1em] text-graphite">
+                  No missing skills
+                </p>
+              )}
             </Sheet>
 
             {/* Right: suggestion → example diff → CTA */}
